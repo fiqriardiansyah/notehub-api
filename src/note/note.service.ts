@@ -281,8 +281,6 @@ export class NoteService {
             }
         });
 
-        console.log(result, user);
-
         return result;
     }
 
