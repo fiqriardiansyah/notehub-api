@@ -1,0 +1,65 @@
+const dayjs = require("dayjs");
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { Note, Prisma, User } from "@prisma/client";
+import { PrismaService } from "src/common/prisma.service";
+
+
+@Injectable()
+export class HabitsService {
+    constructor(private prismaService: PrismaService) { }
+
+    async getUrgentHabit(user: User, limit?: number) {
+        const todayName = dayjs().format('dddd');
+
+        const result = await this.prismaService.$queryRaw(Prisma.raw(`
+            select * from public.note n
+            where n."userId" = '${user.id}' 
+            and (lower('${todayName}') = any("schedulerDays") or "schedulerType" = 'weekly' or "schedulerType" = 'monthly')
+            and n.reschedule = true
+            order by "schedulerStartTime", "schedulerImportant"
+            ${limit ? `limit ${limit}` : ""}
+        `)) as Note[];
+
+        return result.map((rs) => ({
+            ...rs,
+            todos: rs.todos?.map((el) => JSON.parse(el)),
+            tags: rs.tags?.map((el) => JSON.parse(el)),
+            description: JSON.parse(rs?.description)
+        }))
+    }
+
+    async finishHabits(user: User, id: string) {
+        const notes = await this.prismaService.note.findFirst({
+            where: {
+                id,
+                userId: user.id
+            }
+        });
+
+        try {
+            await this.prismaService.$transaction([
+                this.prismaService.note.update({
+                    where: {
+                        userId: user.id,
+                        id,
+                    },
+                    data: {
+                        reschedule: false
+                    }
+                }),
+                this.prismaService.habitsHistory.create({
+                    data: {
+                        isCompleted: true,
+                        userId: user.id,
+                        habitId: id,
+                        todos: notes.todos,
+                    }
+                })
+            ]);
+            return true;
+        } catch (e: any) {
+            throw new HttpException(e?.message, HttpStatus.EXPECTATION_FAILED);
+        }
+
+    }
+}

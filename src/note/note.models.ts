@@ -1,5 +1,12 @@
 import { Tag } from "@prisma/client";
 
+export class Todo {
+    id: string;
+    content: any;
+    isCheck: boolean;
+    checkedAt: any;
+}
+
 export class CreateNote {
     title: string;
     type: string; // freetext
@@ -9,7 +16,23 @@ export class CreateNote {
         version: string;
     };
     isSecure?: boolean;
-    tags?: string[]
+    tags?: string[];
+    isHang?: boolean;
+    folderId?: string;
+    newFolder?: {
+        title: string;
+    }
+    todos?: Todo[];
+    description?: {
+        time: number;
+        blocks: any[];
+        version: string;
+    };
+    schedulerType?: "day" | "weekly" | "monthly";
+    schedulerDays?: string[];
+    schedulerStartTime?: string;
+    schedulerEndTime?: string;
+    schedulerImportant?: number;
 }
 
 export class CreatePasswordNote {
@@ -19,4 +42,9 @@ export class CreatePasswordNote {
 export class ChangePasswordNote {
     password: string;
     "old-password": string;
+}
+
+export class AddNoteToFolder {
+    noteIds: string[];
+    folderId: string;
 }

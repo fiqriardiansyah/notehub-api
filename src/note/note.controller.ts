@@ -1,8 +1,8 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common";
-import { Tag, User } from "@prisma/client";
+import { Folder, Tag, User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { NoteService } from "./note.service";
-import { ChangePasswordNote, CreateNote, CreatePasswordNote } from "./note.models";
+import { AddNoteToFolder, ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { BaseResponse } from "src/model";
 
 @Controller("/note")
@@ -14,6 +14,30 @@ export class NoteController {
         const result = await this.noteService.getNote(user);
         return {
             data: result
+        }
+    }
+
+    @Get("/f/:id")
+    async getFolderAndContent(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.getFolderAndContent(user, id);
+        return {
+            data: result,
+        }
+    }
+
+    @Get("/get-all")
+    async getAllItems(@Auth() user: User) {
+        const result = await this.noteService.getAllItems(user);
+        return {
+            data: result,
+        }
+    }
+
+    @Get("/list-folder")
+    async getFolder(@Auth() user: User) {
+        const result = await this.noteService.getFolder(user);
+        return {
+            data: result,
         }
     }
 
@@ -42,6 +66,14 @@ export class NoteController {
         }
     }
 
+    @Get("/isn/:id") //is-secure-note
+    async isSecureNote(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.isSecureNote(user, id);
+        return {
+            data: result
+        }
+    }
+
     @Post()
     async createNote(@Body() data: CreateNote, @Auth() user: User): Promise<BaseResponse> {
         const result = await this.noteService.createNote(user, data);
@@ -50,7 +82,7 @@ export class NoteController {
         }
     }
 
-    @Post("/spn") // create password note
+    @Post("/spn") // set password note
     async setPasswordNote(@Auth() user: User, @Body() data: CreatePasswordNote) {
         const result = await this.noteService.setPasswordNote(user, data);
         return {
@@ -58,9 +90,17 @@ export class NoteController {
         }
     }
 
-    @Post("/cpn")
+    @Post("/cpn") // change password note
     async changePasswordNote(@Auth() user: User, @Body() data: ChangePasswordNote) {
         const result = await this.noteService.changePasswordNote(user, data);
+        return {
+            data: result,
+        }
+    }
+
+    @Post("/ipnc") // is password note correct
+    async isPasswordNoteCorrect(@Auth() user: User, @Body() data: ChangePasswordNote) {
+        const result = await this.noteService.isPasswordNoteCorrect(user, data);
         return {
             data: result,
         }
@@ -82,6 +122,22 @@ export class NoteController {
         }
     }
 
+    @Post("/antf") // add notes to folder
+    async addNotesToFolder(@Auth() user: User, @Body() data: AddNoteToFolder) {
+        const result = await this.noteService.addNotesToFolder({ user, folderId: data.folderId, noteIds: data.noteIds });
+        return {
+            data: result,
+        }
+    }
+
+    @Post("ct") //change todos
+    async changeTodos(@Auth() user: User, @Body() data: { noteId: string, todos: Todo[] }) {
+        const result = await this.noteService.changeTodos({ user, ...data });
+        return {
+            data: result,
+        }
+    }
+
     @Put("/update/:id")
     async updateNote(@Auth() user: User, @Param("id") id: string, @Body() data: CreateNote) {
         const result = await this.noteService.updateNote(user, data, id);
@@ -93,6 +149,14 @@ export class NoteController {
     @Patch("/tag/:id")
     async removeTagNewFlag(@Auth() user: User, @Param("id") id: string) {
         const result = await this.noteService.removeTagNewFlag(id);
+        return {
+            data: result,
+        }
+    }
+
+    @Patch("/f/:id")
+    async updateFolder(@Auth() user: User, @Body() data: Partial<Folder>, @Param("id") id: string) {
+        const result = await this.noteService.updateFolder(user, data, id);
         return {
             data: result,
         }

@@ -28,6 +28,7 @@ model User {
   sessions      Session[]
   Authenticator Authenticator[]
   Notes Note[]
+  Folder Folder[]
   
   @@map("user")
 }
@@ -98,14 +99,25 @@ model Note {
   id String @id @default(cuid())
   title String
   note String?
+  todos String[]
   type String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   isSecure Boolean @default(false)
   tags String[]
+  isHang Boolean @default(false)
+  description String?
+  schedulerDays String[]
+  schedulerType String?
+  schedulerStartTime DateTime?
+  schedulerEndTime DateTime?
+  schedulerImportant Int?
+  reschedule Boolean? @default(true)
 
   userId String
   user User @relation(fields: [userId], references: [id])
+
+  folderId String?
 
   @@map("note")
 }
@@ -121,4 +133,45 @@ model Tag {
   creatorId String?
 
   @@map("tag")
+}
+
+model Folder {
+  id String @id @default(cuid())
+  title String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  type String?
+
+  userId String
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("folder")
+}
+
+model UserQuote {
+  id String @id @default(cuid())
+  userId String
+  quoteId Int
+  updatedAt DateTime
+
+  @@map("userquote")
+}
+
+model Quote {
+  id Int @id @default(autoincrement())
+  quote String
+  author String
+
+  @@map("quote")
+}
+
+model HabitsHistory {
+  id String @id @default(cuid())
+  userId String
+  habitId String
+  isCompleted Boolean
+  todos String[]
+  completedTime DateTime @default(now())
+
+  @@map("habitshistory")
 }

@@ -1,9 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { Note, Prisma, Tag, User } from "@prisma/client";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
+import { Folder, Note, Tag, User } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from "src/common/prisma.service";
 import { ValidationService } from "src/common/validation.service";
-import { ChangePasswordNote, CreateNote, CreatePasswordNote } from "./note.models";
+import { parsingNotes } from "src/lib/utils";
+import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
 
 @Injectable()
@@ -13,14 +14,35 @@ export class NoteService {
     async createNote(user: User, data: CreateNote) {
         const validate = this.validationService.validate(NoteValidation.CREATE, data) as CreateNote;
 
+        let folder;
+        if (data?.newFolder?.title && !data?.folderId) {
+            folder = await this.prismaService.folder.create({
+                data: {
+                    title: data.newFolder?.title,
+                    userId: user.id,
+                    type: "folder",
+                }
+            });
+        }
+
+        const schedulerImportant = () => {
+            if (!data?.schedulerType) return null;
+            if (data.schedulerType === "day") return 1;
+            if (data.schedulerType === "weekly") return 2;
+            if (data.schedulerType === "monthly") return 3;
+        }
+
         const save = await this.prismaService.note.create({
             data: {
+                ...data,
                 title: validate.title,
+                description: data.description ? JSON.stringify(data.description) : null,
                 note: JSON.stringify(validate.note),
                 userId: user.id,
-                type: data.type,
-                isSecure: data?.isSecure,
-                tags: data?.tags.map((t) => JSON.stringify(t)),
+                tags: data?.tags?.map((t) => JSON.stringify(t)),
+                folderId: folder?.id || data?.folderId,
+                todos: data?.todos?.map((t) => JSON.stringify(t)),
+                schedulerImportant: schedulerImportant()
             }
         });
 
@@ -30,28 +52,98 @@ export class NoteService {
         }
     }
 
-    async getNote(user: User) {
-        const notes = await this.prismaService.note.findMany({
+    async getAllItems(user: User) {
+        const items = await Promise.all([this.getNote(user), this.getFolder(user)]);
+        const flat = items.flat().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        return flat;
+    }
+
+    async getFolderAndContent(user: User, id: string) {
+        const folder = await this.prismaService.folder.findFirst({
             where: {
                 userId: user.id,
+                id,
             }
         });
 
-        console.log(notes);
+        const notes = await this.getNote(user, id);
+        return {
+            folder,
+            notes,
+        }
+    }
 
-        return notes.map((note) => ({
-            ...note,
-            note: note?.isSecure ? undefined : JSON.parse(note.note),
-            tags: note?.tags?.map((t) => JSON.parse(t))
-        }));
+    async getFolder(user: User, id?: string) {
+        const folders = await this.prismaService.folder.findMany({
+            where: {
+                userId: user.id,
+                ...(id && { id })
+            },
+            orderBy: [
+                {
+                    updatedAt: 'desc'
+                }
+            ]
+        });
+
+        return folders;
+    }
+
+    async updateFolder(user: User, data: Partial<Folder>, id: string) {
+        const folder = await this.prismaService.folder.update({
+            where: {
+                userId: user.id,
+                id,
+            },
+            data,
+        })
+
+        return folder;
+    }
+
+    async getNote(user: User, folderId: string = null) {
+        const notes = await this.prismaService.note.findMany({
+            where: {
+                userId: user.id,
+                AND: {
+                    folderId,
+                },
+                NOT: {
+                    type: "habits"
+                }
+            },
+            orderBy: [
+                {
+                    isHang: 'desc'
+                },
+                {
+                    updatedAt: 'desc'
+                }
+            ]
+        });
+
+        return parsingNotes(notes);
     }
 
     async getOneNote(user: User, id: string) {
-        const result = await this.prismaService.note.findFirst({
+        type Return = Note & { folderName?: string };
+        let result = await this.prismaService.note.findFirst({
             where: {
                 AND: [{ userId: user.id }, { id }]
-            }
-        })
+            },
+        });
+
+        if (result?.folderId) {
+            const folder = await this.prismaService.folder.findFirst({
+                where: {
+                    id: result.folderId,
+                }
+            });
+            result = {
+                ...result,
+                folderName: folder.title,
+            } as Return
+        }
 
         if (!result) return null;
 
@@ -59,7 +151,20 @@ export class NoteService {
             ...result,
             note: JSON.parse(result?.note),
             tags: result?.tags?.map((t) => JSON.parse(t)),
+            todos: result?.todos?.map((t) => JSON.parse(t)),
         };
+    }
+
+    async isSecureNote(user: User, id: string) {
+        const result = await this.prismaService.note.findFirst({
+            where: {
+                AND: [{ userId: user.id }, { id }]
+            }
+        })
+
+        if (!result) return false;
+
+        return result?.isSecure;
     }
 
     async deleteNote(id: string) {
@@ -119,6 +224,24 @@ export class NoteService {
             }
         });
         return true;
+    }
+
+    async isPasswordNoteCorrect(user: User, data: CreatePasswordNote) {
+        const result = await this.prismaService.user.findFirst({
+            where: {
+                id: user.id
+            },
+            select: {
+                passwordNote: true
+            }
+        });
+
+        if (!result.passwordNote) {
+            throw new HttpException("Password Note has not been set yet", HttpStatus.NOT_ACCEPTABLE);
+        }
+
+        const match = await bcrypt.compare(data.password, result.passwordNote);
+        return match;
     }
 
     async createTag(user: User, data: Tag) {
@@ -182,8 +305,23 @@ export class NoteService {
         return result;
     }
 
-    async updateNote(user: User, data: CreateNote, id: string) {
-        const validate = this.validationService.validate(NoteValidation.CREATE, data) as CreateNote;
+    async updateNote(user: User, data: Partial<CreateNote>, id: string) {
+        let folder;
+        if (data?.newFolder?.title && !data?.folderId) {
+            folder = await this.prismaService.folder.create({
+                data: {
+                    title: data.newFolder?.title,
+                    userId: user.id,
+                    type: "folder",
+                }
+            });
+        }
+
+        const oldNote = await this.prismaService.note.findFirst({
+            where: {
+                id,
+            }
+        });
 
         const save = await this.prismaService.note.update({
             where: {
@@ -191,11 +329,14 @@ export class NoteService {
                 userId: user.id,
             },
             data: {
-                title: validate.title,
-                note: JSON.stringify(validate.note),
-                type: data.type,
-                isSecure: data?.isSecure,
-                tags: data?.tags.map((t) => JSON.stringify(t)),
+                title: data?.title || oldNote.title,
+                note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
+                type: data.type || oldNote.type,
+                isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
+                tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : oldNote.tags,
+                todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
+                isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
+                folderId: data?.folderId === "remove" ? null : folder?.id || data?.folderId || oldNote?.folderId,
             }
         });
 
@@ -203,5 +344,61 @@ export class NoteService {
             id: save.id,
             createdAt: save.createdAt,
         }
+    }
+
+    async addNotesToFolder({ folderId, user, noteIds }: { user: User, noteIds: string[], folderId: string }) {
+        try {
+            await this.prismaService.$transaction([
+                this.prismaService.folder.update({
+                    where: {
+                        userId: user.id,
+                        id: folderId
+                    },
+                    data: {
+                        updatedAt: new Date().toISOString()
+                    }
+                }),
+                this.prismaService.note.updateMany({
+                    where: {
+                        userId: user.id,
+                        id: {
+                            in: noteIds,
+                        }
+                    },
+                    data: {
+                        folderId
+                    }
+                }),
+            ]);
+            return folderId;
+        } catch (e: any) {
+            throw new HttpException(e?.message, HttpStatus.EXPECTATION_FAILED);
+        }
+
+    }
+
+    async changeTodos(data: { user: User; noteId: string, todos: Todo[] }) {
+        const note = await this.prismaService.note.findFirst({
+            where: {
+                userId: data.user.id,
+                id: data.noteId,
+            }
+        });
+
+        if (!note) {
+            throw new HttpException("Can't find note!", HttpStatus.NOT_FOUND);
+        }
+
+        const update = await this.prismaService.note.update({
+            where: {
+                userId: data.user.id,
+                id: data.noteId,
+            },
+            data: {
+                todos: data.todos.map((t) => JSON.stringify(t)),
+            }
+        });
+
+        return true;
     }
 }
