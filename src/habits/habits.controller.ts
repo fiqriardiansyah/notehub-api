@@ -22,4 +22,12 @@ export class HabitsController {
             data: result
         }
     }
+
+    @Get("/history/:id")
+    async getHabitHistory(@Auth() user: User, @Param("id") id?: string) {
+        const result = await this.habitsService.getHabitHistory(user, id);
+        return {
+            data: result,
+        }
+    }
 }

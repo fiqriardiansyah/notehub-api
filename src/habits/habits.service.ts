@@ -1,6 +1,6 @@
 const dayjs = require("dayjs");
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { Note, Prisma, User } from "@prisma/client";
+import { HabitsHistory, Note, Prisma, User } from "@prisma/client";
 import { PrismaService } from "src/common/prisma.service";
 
 
@@ -61,5 +61,16 @@ export class HabitsService {
             throw new HttpException(e?.message, HttpStatus.EXPECTATION_FAILED);
         }
 
+    }
+
+    async getHabitHistory(user: User, id?: string) {
+        const result = await this.prismaService.$queryRaw(Prisma.raw(`
+            select * from public.habitshistory h where h."userId" = '${user.id}' ${id ? `and h."habitId" = '${id}'` : ""}
+        `)) as HabitsHistory[];
+
+        return result.map((history) => ({
+            ...history,
+            todos: history.todos.map((t) => JSON.parse(t)),
+        }))
     }
 }

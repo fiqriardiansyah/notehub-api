@@ -150,6 +150,7 @@ export class NoteService {
         return {
             ...result,
             note: JSON.parse(result?.note),
+            description: JSON.parse(result?.description),
             tags: result?.tags?.map((t) => JSON.parse(t)),
             todos: result?.todos?.map((t) => JSON.parse(t)),
         };
