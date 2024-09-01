@@ -9,6 +9,6 @@ async function bootstrap() {
     credentials: true
   })
   app.use(cookieParser());
-  await app.listen(1111);
+  await app.listen(process.env.PORT);
 }
 bootstrap();

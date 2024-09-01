@@ -9,7 +9,7 @@ const dayjs = require('dayjs')
 export class HabitsSchedulerService {
     constructor(private prismaService: PrismaService) { }
 
-    @Cron(CronExpression.EVERY_DAY_AT_MIDNIGHT)
+    @Cron("59 23 * * *") // run 1 minute before midnight every day
     async rescheduleHabitDaily() {
         const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
             select * from public.note n
@@ -79,7 +79,7 @@ export class HabitsSchedulerService {
         console.log("RESCHEDULER - DAILY HABIT")
     }
 
-    @Cron(CronExpression.EVERY_WEEK)
+    @Cron("59 23 * * 6") // run 1 minute before midnight/00:00 sunday 
     async reschduleHabitWeekly() {
         const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
             select * from public.note n
@@ -145,7 +145,7 @@ export class HabitsSchedulerService {
         }
     }
 
-    @Cron(CronExpression.EVERY_1ST_DAY_OF_MONTH_AT_MIDNIGHT)
+    @Cron("59 23 28-31 * *") // run 1 minute before midnight of the last day of the month
     async reschduleHabitMonthly() {
         const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
             select * from public.note n
