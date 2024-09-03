@@ -7,8 +7,14 @@ async function bootstrap() {
   app.enableCors({
     origin: process.env.FE_URL,
     credentials: true
-  })
+  });
+
+  const port = parseInt(process.env.PORT);
+  const host = process.env.HOST || "localhost";
+
   app.use(cookieParser());
-  await app.listen(parseInt(process.env.PORT), process.env.HOST || "localhost");
+  await app.listen(port, host, () => {
+    console.log(`server running at ${host}:${port}`);
+  });
 }
 bootstrap();
