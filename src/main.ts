@@ -13,8 +13,7 @@ async function bootstrap() {
   const host = process.env.HOST || "localhost";
 
   app.use(cookieParser());
-  await app.listen(port, host, () => {
-    console.log(`server running at ${host}:${port}`);
-  });
+  await app.listen(port, host);
+  console.log(`server running at ${host}:${port}`);
 }
 bootstrap();
