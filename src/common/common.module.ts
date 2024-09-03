@@ -4,6 +4,7 @@ import { PrismaService } from './prisma.service';
 import { ValidationService } from './validation.service';
 import { APP_FILTER } from '@nestjs/core';
 import { ErrorFilter } from './error.filter';
+import { CommonController } from './common.controller';
 
 @Global()
 @Module({
@@ -23,6 +24,9 @@ import { ErrorFilter } from './error.filter';
     exports: [
         PrismaService,
         ValidationService,
+    ],
+    controllers: [
+        CommonController,
     ]
 })
 export class CommonModule { }
