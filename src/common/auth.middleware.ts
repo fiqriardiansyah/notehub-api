@@ -13,8 +13,9 @@ export class AuthMiddleware implements NestMiddleware {
     constructor(private readonly prismaService: PrismaService) { }
 
     async use(req: RequestUser, res: Response, next: (error?: Error | any) => void) {
+
         const secret = req.headers['x-auth-secret'];
-        const token = req.cookies['authjs.session-token'] || req.cookies['__Secure-authjs.session-token'];
+        const token = req.headers['authjs.session-token'] || req.cookies['authjs.session-token']
 
         if (secret !== "fiqriardiansyah") {
             throw new HttpException("Auth secret not provided or incorrect", 401)
