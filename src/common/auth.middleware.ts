@@ -14,12 +14,10 @@ export class AuthMiddleware implements NestMiddleware {
 
     async use(req: RequestUser, res: Response, next: (error?: Error | any) => void) {
 
-        console.log(req.headers, "cookie", req.cookies);
-
         const secret = req.headers['x-auth-secret'];
-        const token = req.headers['authjs.session-token'] || req.cookies['authjs.session-token']
+        const token = req.headers['Authorization'];
 
-        if (secret !== "fiqriardiansyah") {
+        if (secret !== process.env.SECRET) {
             throw new HttpException("Auth secret not provided or incorrect", 401)
         }
 
