@@ -34,7 +34,7 @@ export class NoteService {
 
         const save = await this.prismaService.note.create({
             data: {
-                ...data,
+                type: data.type,
                 title: validate.title,
                 description: data.description ? JSON.stringify(data.description) : null,
                 note: JSON.stringify(validate.note),
@@ -42,7 +42,13 @@ export class NoteService {
                 tags: data?.tags?.map((t) => JSON.stringify(t)),
                 folderId: folder?.id || data?.folderId,
                 todos: data?.todos?.map((t) => JSON.stringify(t)),
-                schedulerImportant: schedulerImportant()
+                schedulerImportant: schedulerImportant(),
+                schedulerType: data.schedulerType,
+                schedulerDays: data.schedulerDays,
+                schedulerEndTime: data.schedulerEndTime,
+                schedulerStartTime: data.schedulerStartTime,
+                isHang: data?.isHang,
+                isSecure: data?.isSecure,
             }
         });
 
