@@ -15,14 +15,14 @@ export class AuthMiddleware implements NestMiddleware {
     async use(req: RequestUser, res: Response, next: (error?: Error | any) => void) {
 
         const secret = req.headers['x-auth-secret'];
-        const token = req.headers['Authorization'];
+        const token = req.headers['Authorization'] || req.headers['authorization'] || req.cookies['Authorization'];
 
         if (secret !== process.env.SECRET) {
             throw new HttpException("Auth secret not provided or incorrect", 401)
         }
 
         if (!token) {
-            throw new HttpException("Unauthorized", 401)
+            throw new HttpException("Authorization token not found", 401)
         }
 
         const user = await this.prismaService.$queryRawUnsafe(`SELECT * FROM "session"
@@ -32,7 +32,7 @@ export class AuthMiddleware implements NestMiddleware {
         `, token)
 
         if (!user) {
-            throw new HttpException("Unauthorized", 401)
+            throw new HttpException("No User found", 401)
         }
 
         req.user = user[0] as User;
