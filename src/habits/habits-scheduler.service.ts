@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Cron } from "@nestjs/schedule";
 import { Note, Prisma } from "@prisma/client";
 import { PrismaService } from "src/common/prisma.service";
 import { Todo } from "src/model";
@@ -11,203 +11,124 @@ export class HabitsSchedulerService {
 
     @Cron("59 23 * * *") // run 1 minute before midnight every day
     async rescheduleHabitDaily() {
-        const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
-            select * from public.note n
-            where n.type = 'habits' and n."schedulerType" = 'day'
-        `)) as Note[];
+        const notes = await this.getHabits("day");
 
-        const rescheduleHabits: Note[] = [];
-        const notFinishHabits: Note[] = [];
+        const habitsToReschedule: Note[] = [];
+        const completedStatusMap: Record<string, boolean> = {};
 
-        notesHabit.forEach((note) => {
-            const todos = note.todos.map((t) => JSON.parse(t)) as Todo[];
-            const allDone = todos.filter((t) => t.isCheck).length === todos.length;
+        notes.forEach((note) => {
+            const todos = this.parseTodos(note.todos);
+            const allDone = todos.every((t) => t.isCheck);
 
-            if (allDone || !note.reschedule) {
-                const today = dayjs().format("dddd").toLowerCase();
-                if (note.schedulerDays.includes(today)) {
-                    rescheduleHabits.push(note);
-                }
-                return;
+            if (this.isScheduledForToday(note)) {
+                habitsToReschedule.push(note);
+                completedStatusMap[note.id] = allDone;
             }
-            notFinishHabits.push(note);
         });
 
-        if (rescheduleHabits.length) {
-            const updateRescheduleAndResetTodos = this.prismaService.$queryRaw(Prisma.raw(`
-                    UPDATE public.note 
-                        SET reschedule = true, 
-                            todos = 
-                            case
-                                ${rescheduleHabits.map((n) => {
-                const resetTodos = n.todos.map((t) => {
-                    const todo = JSON.parse(t) as Todo;
-                    return {
-                        ...todo,
-                        isCheck: false,
-                        checkedAt: null,
-                    };
-                }).map((t) => `'${JSON.stringify(t)}'`).join(", ");
-                return `WHEN id = '${n.id}' THEN ARRAY[${resetTodos}]::text[]` + '\n'
-            }).join(' ')}
-                                end
-                    WHERE id IN (${rescheduleHabits.map((n) => `'${n.id}'`).join(", ")});
-            `));
-
-            const createHistory = this.prismaService.habitsHistory.createMany({
-                data: rescheduleHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: true,
-                    todos: habit.todos,
-                }))
-            });
-
-            await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory]);
+        if (habitsToReschedule.length) {
+            await this.handleHabits(habitsToReschedule, completedStatusMap);
         }
 
-        if (notFinishHabits.length) {
-            await this.prismaService.habitsHistory.createMany({
-                data: notFinishHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: false,
-                    todos: habit.todos,
-                }))
-            });
-        }
-        console.log("RESCHEDULER - DAILY HABIT")
+        console.log("RESCHEDULER - DAILY HABIT");
     }
 
     @Cron("59 23 * * 6") // run 1 minute before midnight/00:00 sunday 
     async reschduleHabitWeekly() {
-        const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
-            select * from public.note n
-            where n.type = 'habits' and n."schedulerType" = 'weekly'
-        `)) as Note[];
+        const notes = await this.getHabits("weekly");
 
-        const rescheduleHabits: Note[] = [];
-        const notFinishHabits: Note[] = [];
+        const habitsToReschedule: Note[] = [];
+        const completedStatusMap: Record<string, boolean> = {};
 
-        notesHabit.forEach((note) => {
-            const todos = note.todos.map((t) => JSON.parse(t)) as Todo[];
-            const allDone = todos.filter((t) => t.isCheck).length === todos.length;
+        notes.forEach((note) => {
+            const todos = this.parseTodos(note.todos);
+            const allDone = todos.every((t) => t.isCheck);
 
-            if (allDone || !note.reschedule) {
-                rescheduleHabits.push(note);
-                return;
-            }
-            notFinishHabits.push(note);
+            habitsToReschedule.push(note);
+            completedStatusMap[note.id] = allDone;
         });
 
-        if (rescheduleHabits.length) {
-            const updateRescheduleAndResetTodos = this.prismaService.$queryRaw(Prisma.raw(`
-                UPDATE public.note 
-                    SET reschedule = true, 
-                        todos = 
-                        case
-                            ${rescheduleHabits.map((n) => {
-                const resetTodos = n.todos.map((t) => {
-                    const todo = JSON.parse(t) as Todo;
-                    return {
-                        ...todo,
-                        isCheck: false,
-                        checkedAt: null,
-                    };
-                }).map((t) => `'${JSON.stringify(t)}'`).join(", ");
-                return `WHEN id = '${n.id}' THEN ARRAY[${resetTodos}]::text[]` + '\n'
-            }).join(' ')}
-                            end
-                WHERE id IN (${rescheduleHabits.map((n) => `'${n.id}'`).join(", ")});
-        `));
-
-            const createHistory = this.prismaService.habitsHistory.createMany({
-                data: rescheduleHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: true,
-                    todos: habit.todos,
-                }))
-            });
-
-            await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory]);
+        if (habitsToReschedule.length) {
+            await this.handleHabits(habitsToReschedule, completedStatusMap);
         }
 
-        if (notFinishHabits.length) {
-            await this.prismaService.habitsHistory.createMany({
-                data: rescheduleHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: false,
-                    todos: habit.todos,
-                }))
-            });
-        }
+        console.log("RESCHEDULER - WEEKLY HABIT");
     }
 
     @Cron("59 23 28-31 * *") // run 1 minute before midnight of the last day of the month
     async reschduleHabitMonthly() {
-        const notesHabit = await this.prismaService.$queryRaw(Prisma.raw(`
-            select * from public.note n
-            where n.type = 'habits' and n."schedulerType" = 'monthly'
-        `)) as Note[];
+        const notes = await this.getHabits("monthly");
 
-        const rescheduleHabits: Note[] = [];
-        const notFinishHabits: Note[] = [];
+        const habitsToReschedule: Note[] = [];
+        const completedStatusMap: Record<string, boolean> = {};
 
-        notesHabit.forEach((note) => {
-            const todos = note.todos.map((t) => JSON.parse(t)) as Todo[];
-            const allDone = todos.filter((t) => t.isCheck).length === todos.length;
+        notes.forEach((note) => {
+            const todos = this.parseTodos(note.todos);
+            const allDone = todos.every((t) => t.isCheck);
 
-            if (allDone || !note.reschedule) {
-                rescheduleHabits.push(note);
-                return;
-            }
-            notFinishHabits.push(note);
+            habitsToReschedule.push(note);
+            completedStatusMap[note.id] = allDone;
         });
 
-        if (rescheduleHabits.length) {
-            const updateRescheduleAndResetTodos = this.prismaService.$queryRaw(Prisma.raw(`
-                UPDATE public.note 
-                    SET reschedule = true, 
-                        todos = 
-                        case
-                            ${rescheduleHabits.map((n) => {
-                const resetTodos = n.todos.map((t) => {
-                    const todo = JSON.parse(t) as Todo;
-                    return {
-                        ...todo,
-                        isCheck: false,
-                        checkedAt: null,
-                    };
-                }).map((t) => `'${JSON.stringify(t)}'`).join(", ");
-                return `WHEN id = '${n.id}' THEN ARRAY[${resetTodos}]::text[]` + '\n'
-            }).join(' ')}
-                            end
-                WHERE id IN (${rescheduleHabits.map((n) => `'${n.id}'`).join(", ")});
+        if (habitsToReschedule.length) {
+            await this.handleHabits(habitsToReschedule, completedStatusMap);
+        }
+
+        console.log("RESCHEDULER - MONTHLY HABIT");
+    }
+
+    private async getHabits(type: "day" | "weekly" | "monthly"): Promise<Note[]> {
+        return this.prismaService.$queryRaw(Prisma.raw(`
+            SELECT * FROM public.note n
+            WHERE n.type = 'habits' AND n."schedulerType" = '${type}'
         `));
+    }
 
-            const createHistory = this.prismaService.habitsHistory.createMany({
-                data: rescheduleHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: true,
-                    todos: habit.todos,
-                }))
-            });
+    private parseTodos(todos: string[]): Todo[] {
+        return todos.map((t) => JSON.parse(t)) as Todo[];
+    }
 
-            await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory]);
-        }
+    private isScheduledForToday(note: Note): boolean {
+        const today = dayjs().format("dddd").toLowerCase();
+        return note.schedulerDays.includes(today);
+    }
 
-        if (notFinishHabits.length) {
-            await this.prismaService.habitsHistory.createMany({
-                data: rescheduleHabits.map((habit) => ({
-                    habitId: habit.id,
-                    userId: habit.userId,
-                    isCompleted: false,
-                    todos: habit.todos,
-                }))
-            });
-        }
+    private async handleHabits(habits: Note[], completedStatusMap: Record<string, boolean>) {
+        const updateRescheduleAndResetTodos = this.buildUpdateQuery(habits);
+        const createHistory = this.prismaService.habitsHistory.createMany({
+            data: habits.map((habit) => ({
+                habitId: habit.id,
+                userId: habit.userId,
+                isCompleted: completedStatusMap[habit.id],
+                todos: habit.todos,
+            })),
+        });
+
+        await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory]);
+    }
+
+    private buildUpdateQuery(habits: Note[]) {
+        const cases = habits.map((n) => {
+            const resetTodos = this.resetTodos(n.todos);
+            return `WHEN id = '${n.id}' THEN ARRAY[${resetTodos}]::text[]` + "\n";
+        }).join(' ');
+
+        const habitIds = habits.map((n) => `'${n.id}'`).join(", ");
+        return this.prismaService.$queryRaw(Prisma.raw(`
+            UPDATE public.note
+            SET reschedule = true, todos = CASE ${cases} END
+            WHERE id IN (${habitIds});
+        `));
+    }
+
+    private resetTodos(todos: string[]): string {
+        return todos.map((t) => {
+            const todo = JSON.parse(t) as Todo;
+            return {
+                ...todo,
+                isCheck: false,
+                checkedAt: null,
+            };
+        }).map((t) => `'${JSON.stringify(t)}'`).join(", ");
     }
 }
