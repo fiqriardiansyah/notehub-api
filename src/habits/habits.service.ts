@@ -16,7 +16,7 @@ export class HabitsService {
             where n."userId" = '${user.id}' 
             and (lower('${todayName}') = any("schedulerDays") or "schedulerType" = 'weekly' or "schedulerType" = 'monthly')
             and n.reschedule = true
-            order by "schedulerStartTime", "schedulerImportant"
+            order by "schedulerImportant", "schedulerStartTime" desc
             ${limit ? `limit ${limit}` : ""}
         `)) as Note[];
 
