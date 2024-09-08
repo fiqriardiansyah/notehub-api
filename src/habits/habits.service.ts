@@ -25,7 +25,31 @@ export class HabitsService {
             todos: rs.todos?.map((el) => JSON.parse(el)),
             tags: rs.tags?.map((el) => JSON.parse(el)),
             description: JSON.parse(rs?.description)
-        }))
+        }));
+    }
+
+    async getHabits(user: User, type: string = "all") {
+        const queryType = () => {
+            if (type === "all") return "";
+            if (type === "day") return `and n."schedulerType" = 'day'`;
+            if (type === "weekly") return `and n."schedulerType" = 'weekly'`;
+            if (type === "monthly") return `and n."schedulerType" = 'monthly'`;
+        }
+
+        const result = await this.prismaService.$queryRaw(Prisma.raw(`
+            select * from public.note n
+            where n."userId" = '${user.id}'
+            and n."type" = 'habits'
+            ${queryType()}
+            order by n."schedulerImportant", n."schedulerEndTime" desc
+        `)) as Note[];
+
+        return result.map((rs) => ({
+            ...rs,
+            todos: rs.todos?.map((el) => JSON.parse(el)),
+            tags: rs.tags?.map((el) => JSON.parse(el)),
+            description: JSON.parse(rs?.description)
+        }));
     }
 
     async finishHabits(user: User, id: string) {

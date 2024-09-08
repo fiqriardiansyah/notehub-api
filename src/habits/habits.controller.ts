@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Post, Query } from "@nestjs/common";
+import { Controller, Get, HttpException, HttpStatus, Param, Post, Query } from "@nestjs/common";
 import { User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { HabitsService } from "./habits.service";
@@ -12,6 +12,18 @@ export class HabitsController {
         const result = await this.habitsService.getUrgentHabit(user, limit);
         return {
             data: result
+        }
+    }
+
+    @Get("/:type")
+    async getHabits(@Auth() user: User, @Param("type") type: string) {
+        const types = ["all", "day", "weekly", "monthly"];
+        if (!types.includes(type)) {
+            throw new HttpException("Type habits required!", HttpStatus.BAD_GATEWAY);
+        }
+        const result = await this.habitsService.getHabits(user, type);
+        return {
+            data: result,
         }
     }
 
