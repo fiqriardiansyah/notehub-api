@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { Folder, Note, Tag, User } from "@prisma/client";
+import { Folder, Note, Prisma, Tag, User } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from "src/common/prisma.service";
 import { ValidationService } from "src/common/validation.service";
@@ -174,13 +174,36 @@ export class NoteService {
         return result?.isSecure;
     }
 
-    async deleteNote(id: string) {
+    async deleteNote(user: User, id: string) {
         const result = await this.prismaService.note.delete({
             where: {
+                userId: user.id,
                 id,
             }
         });
         return result
+    }
+
+    async deleteFolder(user: User, id: string) {
+        const folder = await this.prismaService.folder.findFirst({ where: { id, userId: user.id } });
+        if (!folder) {
+            throw new HttpException("Folder not exist", HttpStatus.NOT_FOUND);
+        }
+
+        try {
+            this.prismaService.$transaction([
+                this.prismaService.$queryRaw(Prisma.raw(`
+                    delete from public.note n where n."userId" = '${user.id}' and n."folderId" = '${id}'
+                `)),
+                this.prismaService.folder.delete({ where: { id, userId: user.id } })
+            ])
+        } catch (e: any) {
+            throw new HttpException(e?.message, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        return {
+            folderId: id
+        }
     }
 
     async hasPasswordNote(user: User) {
@@ -262,9 +285,10 @@ export class NoteService {
         return result;
     }
 
-    async deleteTag(id: string) {
+    async deleteTag(user: User, id: string) {
         const result = await this.prismaService.tag.delete({
             where: {
+                creatorId: user.id,
                 id,
             }
         });

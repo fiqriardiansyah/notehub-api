@@ -164,7 +164,15 @@ export class NoteController {
 
     @Delete(":id")
     async deleteNote(@Auth() user: User, @Param("id") id: string) {
-        const result = await this.noteService.deleteNote(id);
+        const result = await this.noteService.deleteNote(user, id);
+        return {
+            data: result
+        }
+    }
+
+    @Delete("/folder/:id")
+    async deleteFolder(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.deleteFolder(user, id);
         return {
             data: result
         }
@@ -172,7 +180,7 @@ export class NoteController {
 
     @Delete("/tag/:id")
     async deleteTag(@Auth() user: User, @Param("id") id: string) {
-        const result = await this.noteService.deleteNote(id);
+        const result = await this.noteService.deleteTag(user, id);
         return {
             data: result,
         }
