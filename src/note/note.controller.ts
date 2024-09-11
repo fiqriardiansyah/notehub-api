@@ -185,4 +185,12 @@ export class NoteController {
             data: result,
         }
     }
+
+    @Get("/reset-todos-timer/:id") /// for debuging only
+    async resetTodoTimer(@Param("id") id: string) {
+        const result = await this.noteService.resetTodoTimer({ noteId: id });
+        return {
+            data: result,
+        }
+    }
 }

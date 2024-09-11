@@ -428,6 +428,30 @@ export class NoteService {
             }
         });
 
-        return true;
+        return {
+            ...update,
+            todos: update.todos.map((t) => JSON.parse(t)),
+        };
+    }
+
+    async resetTodoTimer(data: { noteId: string }) { // for debug only
+        const note = await this.prismaService.note.findFirst({
+            where: { id: data.noteId }
+        });
+
+        const todos = note.todos.map((t) => JSON.parse(t)) as Todo[];
+
+        const update = await this.prismaService.note.update({
+            where: { id: data.noteId },
+            data: {
+                ...note,
+                todos: todos?.map((t) => JSON.stringify(({ ...t, timer: null }))),
+            }
+        });
+
+        return {
+            ...update,
+            todos: update.todos.map((t) => JSON.parse(t)),
+        };
     }
 }

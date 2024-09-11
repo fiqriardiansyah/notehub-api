@@ -1,10 +1,11 @@
-import { Tag } from "@prisma/client";
+import { Tag, Timer } from "@prisma/client";
 
 export class Todo {
     id: string;
     content: any;
     isCheck: boolean;
     checkedAt: any;
+    timer?: Timer
 }
 
 export class CreateNote {

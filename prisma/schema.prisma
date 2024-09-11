@@ -176,3 +176,15 @@ model HabitsHistory {
 
   @@map("habitshistory")
 }
+
+model Timer {
+  id String @id @default(cuid())
+  itemId String
+  type String?
+  startTime DateTime @default(now())
+  endTime DateTime?
+  isEnd Boolean? @default(false)
+  autoComplete Boolean? @default(false)
+
+  @@map("timer")
+}
