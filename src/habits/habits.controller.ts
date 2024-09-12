@@ -1,5 +1,5 @@
-import { Controller, Get, HttpException, HttpStatus, Param, Post, Query } from "@nestjs/common";
-import { User } from "@prisma/client";
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Query } from "@nestjs/common";
+import { Timer, User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { HabitsService } from "./habits.service";
 
@@ -38,6 +38,22 @@ export class HabitsController {
     @Get("/history/:id")
     async getHabitHistory(@Auth() user: User, @Param("id") id?: string) {
         const result = await this.habitsService.getHabitHistory(user, id);
+        return {
+            data: result,
+        }
+    }
+
+    @Post("/timer")
+    async setTimerTask(@Auth() user: User, @Body() timer: Partial<Timer>) {
+        const result = await this.habitsService.setTimerTask(timer);
+        return {
+            data: result,
+        }
+    }
+
+    @Delete("/timer/:noteId/:itemId")
+    async deleteTimerTask(@Auth() user: User, @Param() params: { noteId: string, itemId: string }) {
+        const result = await this.habitsService.deleteTimerTask(params.itemId, params.noteId);
         return {
             data: result,
         }

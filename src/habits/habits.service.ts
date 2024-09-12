@@ -1,6 +1,6 @@
 const dayjs = require("dayjs");
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { HabitsHistory, Note, Prisma, User } from "@prisma/client";
+import { HabitsHistory, Note, Prisma, Timer, User } from "@prisma/client";
 import { PrismaService } from "src/common/prisma.service";
 
 
@@ -96,5 +96,30 @@ export class HabitsService {
             ...history,
             todos: history.todos.map((t) => JSON.parse(t)),
         }))
+    }
+
+    async setTimerTask(timer: Partial<Timer>) {
+        const result = await this.prismaService.timer.create({
+            data: {
+                itemId: timer.itemId,
+                noteId: timer.noteId,
+                autoComplete: timer?.autoComplete,
+                endTime: timer?.endTime,
+                isEnd: timer?.isEnd,
+                startTime: timer?.startTime,
+                type: timer?.type
+            }
+        });
+        return result;
+    };
+
+    async deleteTimerTask(itemId: string, noteId: string) {
+        const result = await this.prismaService.timer.deleteMany({
+            where: {
+                noteId,
+                itemId
+            }
+        });
+        return result;
     }
 }

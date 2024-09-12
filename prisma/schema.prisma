@@ -180,6 +180,7 @@ model HabitsHistory {
 model Timer {
   id String @id @default(cuid())
   itemId String
+  noteId String
   type String?
   startTime DateTime @default(now())
   endTime DateTime?
