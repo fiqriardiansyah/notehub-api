@@ -7,6 +7,13 @@ import { parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
 
+const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
+    if (!schedulerType) return null;
+    if (schedulerType === "day") return 1;
+    if (schedulerType === "weekly") return 2;
+    if (schedulerType === "monthly") return 3;
+}
+
 @Injectable()
 export class NoteService {
     constructor(private prismaService: PrismaService, private validationService: ValidationService) { }
@@ -25,13 +32,6 @@ export class NoteService {
             });
         }
 
-        const schedulerImportant = () => {
-            if (!data?.schedulerType) return null;
-            if (data.schedulerType === "day") return 1;
-            if (data.schedulerType === "weekly") return 2;
-            if (data.schedulerType === "monthly") return 3;
-        }
-
         const save = await this.prismaService.note.create({
             data: {
                 type: data.type,
@@ -42,7 +42,7 @@ export class NoteService {
                 tags: data?.tags?.map((t) => JSON.stringify(t)),
                 folderId: folder?.id || data?.folderId,
                 todos: data?.todos?.map((t) => JSON.stringify(t)),
-                schedulerImportant: schedulerImportant(),
+                schedulerImportant: schedulerImportant(data?.schedulerType),
                 schedulerType: data.schedulerType,
                 schedulerDays: data.schedulerDays,
                 schedulerEndTime: data.schedulerEndTime,
@@ -358,14 +358,20 @@ export class NoteService {
                 userId: user.id,
             },
             data: {
-                title: data?.title || oldNote.title,
-                note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
                 type: data.type || oldNote.type,
-                isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
+                title: data?.title || oldNote.title,
+                description: data?.description ? JSON.stringify(data?.description) : oldNote?.description,
+                note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
                 tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : oldNote.tags,
-                todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
-                isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
                 folderId: data?.folderId === "remove" ? null : folder?.id || data?.folderId || oldNote?.folderId,
+                todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
+                schedulerImportant: schedulerImportant(data?.schedulerType),
+                schedulerType: data?.schedulerType,
+                schedulerDays: data.schedulerDays,
+                schedulerEndTime: data.schedulerEndTime,
+                schedulerStartTime: data.schedulerStartTime,
+                isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
+                isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
             }
         });
 
