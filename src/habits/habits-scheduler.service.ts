@@ -128,6 +128,7 @@ export class HabitsSchedulerService {
                 ...todo,
                 isCheck: false,
                 checkedAt: null,
+                timer: null,
             };
         }).map((t) => `'${JSON.stringify(t)}'`).join(", ");
     }
