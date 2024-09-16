@@ -451,7 +451,7 @@ export class NoteService {
             where: { id: data.noteId },
             data: {
                 ...note,
-                todos: todos?.map((t) => JSON.stringify(({ ...t, timer: null }))),
+                todos: todos?.map((t) => JSON.stringify(({ ...t, timer: null, attach: [] }))),
             }
         });
 
