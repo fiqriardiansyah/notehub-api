@@ -9,6 +9,8 @@ import { QuoteModule } from './quote/quote.module';
 import { HabitsModule } from './habits/habits.module';
 import { HabitsController } from './habits/habits.controller';
 import { ScheduleModule } from '@nestjs/schedule';
+import { SearchController } from './search/search.controller';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -17,13 +19,14 @@ import { ScheduleModule } from '@nestjs/schedule';
     AuthModule,
     NoteModule,
     QuoteModule,
-    HabitsModule
+    HabitsModule,
+    SearchModule,
   ],
   controllers: [],
   providers: [],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthMiddleware).forRoutes(NoteController, HabitsController, QuoteController)
+    consumer.apply(AuthMiddleware).forRoutes(NoteController, HabitsController, QuoteController, SearchController)
   }
 }

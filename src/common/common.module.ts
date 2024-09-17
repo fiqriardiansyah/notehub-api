@@ -5,6 +5,7 @@ import { ValidationService } from './validation.service';
 import { APP_FILTER } from '@nestjs/core';
 import { ErrorFilter } from './error.filter';
 import { CommonController } from './common.controller';
+import { SearchController } from 'src/search/search.controller';
 
 @Global()
 @Module({
