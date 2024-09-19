@@ -30,6 +30,7 @@ model User {
   Authenticator Authenticator[]
   Notes Note[]
   Folder Folder[]
+  collaboration Collaboration[]
   
   @@map("user")
 }
@@ -115,6 +116,9 @@ model Note {
   schedulerImportant Int?
   reschedule Boolean? @default(true)
 
+  collaboration Collaboration[]
+  invitation Invitation[]
+
   userId String
   user User @relation(fields: [userId], references: [id])
 
@@ -188,4 +192,36 @@ model Timer {
   autoComplete Boolean? @default(false)
 
   @@map("timer")
+}
+
+model Collaboration {
+  id String @id @default(cuid())
+  noteId String 
+  userId String
+  role String @default("viewer")
+  createdAt DateTime @default(now())
+  udpatedAt DateTime @default(now())
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("collaboration")
+}
+
+model Invitation {
+  id String @id @default(cuid())
+  noteId String
+  noteTitle String
+  invitedEmail String
+  invitedBy String
+  status String @default("pending")
+  token String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  role String @default("viewer")
+  attempted Int @default(1)
+
+  note Note @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@map("invitation")
 }
