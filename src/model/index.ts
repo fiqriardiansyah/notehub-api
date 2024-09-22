@@ -1,5 +1,4 @@
-import { Timer } from "@prisma/client";
-import { Address } from "nodemailer/lib/mailer";
+import { Note, Timer } from "@prisma/client";
 
 export class BaseResponse<T = any> {
     data?: T;
@@ -19,4 +18,10 @@ export class InvitationData {
     role: string;
     noteId: string;
     noteTitle: string;
+}
+
+export type CollaborateProject = Pick<Note, "id" | "title" | "note" | "type" | "todos" | "isHang" | "tags" | "updatedAt"> & Pick<InvitationData, "role"> & {
+    ownerId: string;
+    ownerName: string;
+    ownerImage: string;
 }

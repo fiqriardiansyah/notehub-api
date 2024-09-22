@@ -3,7 +3,7 @@ import { Prisma, User } from "@prisma/client";
 import Mail from "nodemailer/lib/mailer";
 import { PrismaService } from "src/common/prisma.service";
 import { MailerService } from "src/mailer/mailer.service";
-import { InvitationData } from "src/model";
+import { CollaborateProject, InvitationData } from "src/model";
 import { MailerTemplateService } from "src/mailer/mailer.template.service";
 
 const dayjs = require("dayjs");
@@ -217,5 +217,21 @@ export class CollaborationService {
             }
         });
         return true;
+    };
+
+    async getMyCollaborateProject(user: User) {
+        const result = await this.prismaService.$queryRaw(Prisma.raw(`
+            select n."userId" as "ownerId", u."name" as "ownerName", u."image" as "ownerImage", n."id", n."title", n."note" , n."type", n."tags" , n."isHang", n."todos", c."role" 
+            from public.collaboration c inner join public.note n on c."noteId" = n."id"
+            inner join public.user u on u.id = n."userId"
+            where c."userId" = '${user.id}'
+            `)) as CollaborateProject[];
+
+        return result?.map((r) => ({
+            ...r,
+            todos: r?.todos?.map((t) => JSON.parse(t)),
+            note: JSON.parse(r?.note),
+            tags: r?.tags?.map((t) => JSON.parse(t)),
+        }))
     }
 }

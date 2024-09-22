@@ -6,6 +6,7 @@ import { ValidationService } from "src/common/validation.service";
 import { parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
+import { InvitationData } from "src/model";
 
 const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
     if (!schedulerType) return null;
@@ -132,12 +133,13 @@ export class NoteService {
     }
 
     async getOneNote(user: User, id: string) {
-        type Return = Note & { folderName?: string };
-        let result = await this.prismaService.note.findFirst({
-            where: {
-                AND: [{ userId: user.id }, { id }]
-            },
-        });
+        type Return = Note & { folderName?: string, role: string };
+
+        let result = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select n.*, c."role" from public.note n left join public.collaboration c on n.id = c."noteId" 
+            where n.id = '${id}' and 
+            (n."userId" = '${user.id}' or c."userId" = '${user.id}')
+        `)))[0] as Note;
 
         if (result?.folderId) {
             const folder = await this.prismaService.folder.findFirst({
@@ -335,49 +337,56 @@ export class NoteService {
     }
 
     async updateNote(user: User, data: Partial<CreateNote>, id: string) {
-        let folder;
-        if (data?.newFolder?.title && !data?.folderId) {
-            folder = await this.prismaService.folder.create({
-                data: {
-                    title: data.newFolder?.title,
-                    userId: user.id,
-                    type: "folder",
+        try {
+            let folder;
+            if (data?.newFolder?.title && !data?.folderId) {
+                folder = await this.prismaService.folder.create({
+                    data: {
+                        title: data.newFolder?.title,
+                        userId: user.id,
+                        type: "folder",
+                    }
+                });
+            }
+
+            const oldNote = (await this.prismaService.$queryRaw(Prisma.raw(`
+                select n.* from public.note n left join public.collaboration c on c."noteId" = n.id
+                where n.id = '${id}' and (n."userId" = '${user.id}' or c."userId" = '${user.id}')
+            `)))[0] as Note;
+
+            if (oldNote) {
+                const save = await this.prismaService.note.update({
+                    where: {
+                        id: oldNote.id,
+                    },
+                    data: {
+                        type: data.type || oldNote.type,
+                        title: data?.title || oldNote.title,
+                        description: data?.description ? JSON.stringify(data?.description) : oldNote?.description,
+                        note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
+                        tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : oldNote.tags,
+                        folderId: data?.folderId === "remove" ? null : folder?.id || data?.folderId || oldNote?.folderId,
+                        todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
+                        schedulerImportant: schedulerImportant(data?.schedulerType),
+                        schedulerType: data?.schedulerType,
+                        schedulerDays: data.schedulerDays,
+                        schedulerEndTime: data.schedulerEndTime,
+                        schedulerStartTime: data.schedulerStartTime,
+                        isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
+                        isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
+                    }
+                });
+
+                return {
+                    id: save.id,
+                    createdAt: save.createdAt,
                 }
-            });
-        }
-
-        const oldNote = await this.prismaService.note.findFirst({
-            where: {
-                id,
             }
-        });
 
-        const save = await this.prismaService.note.update({
-            where: {
-                id,
-                userId: user.id,
-            },
-            data: {
-                type: data.type || oldNote.type,
-                title: data?.title || oldNote.title,
-                description: data?.description ? JSON.stringify(data?.description) : oldNote?.description,
-                note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
-                tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : oldNote.tags,
-                folderId: data?.folderId === "remove" ? null : folder?.id || data?.folderId || oldNote?.folderId,
-                todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
-                schedulerImportant: schedulerImportant(data?.schedulerType),
-                schedulerType: data?.schedulerType,
-                schedulerDays: data.schedulerDays,
-                schedulerEndTime: data.schedulerEndTime,
-                schedulerStartTime: data.schedulerStartTime,
-                isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
-                isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
-            }
-        });
+            throw new HttpException("Can't find the note", HttpStatus.NOT_FOUND);
 
-        return {
-            id: save.id,
-            createdAt: save.createdAt,
+        } catch (e) {
+            throw new HttpException(e?.message, HttpStatus.INTERNAL_SERVER_ERROR)
         }
     }
 

@@ -16,6 +16,14 @@ export class CollaborationController {
         }
     }
 
+    @Get("/all")
+    async getMyCollaborateProject(@Auth() user: User) {
+        const result = await this.collaborationService.getMyCollaborateProject(user);
+        return {
+            data: result,
+        }
+    }
+
     @Get("/invite/:noteId")
     async getInvitation(@Auth() user: User, @Param("noteId") noteId: string, @Query("status") status: string) {
         const result = await this.collaborationService.getInvitation(user, noteId, status);
@@ -74,4 +82,5 @@ export class CollaborationController {
             data: result,
         }
     }
+
 }
