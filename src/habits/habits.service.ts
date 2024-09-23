@@ -100,6 +100,14 @@ export class HabitsService {
     }
 
     async setTimerTask(timer: Partial<Timer>) {
+        const alreadExist = await this.prismaService.timer.findFirst({
+            where: {
+                itemId: timer.itemId,
+                noteId: timer.noteId,
+            }
+        });
+        if (alreadExist) return alreadExist;
+
         const result = await this.prismaService.timer.create({
             data: {
                 itemId: timer.itemId,
