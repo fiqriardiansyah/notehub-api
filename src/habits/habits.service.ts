@@ -2,6 +2,7 @@ const dayjs = require("dayjs");
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { HabitsHistory, Note, Prisma, Timer, User } from "@prisma/client";
 import { PrismaService } from "src/common/prisma.service";
+import { Todo } from "src/note/note.models";
 
 
 @Injectable()
@@ -121,5 +122,38 @@ export class HabitsService {
             }
         });
         return result;
+    }
+
+    async getRunningTimer(user: User) {
+        type RunningTimer = Pick<Timer, "id" | "endTime" | "startTime" | "itemId"> & Pick<Note, "title"> & {
+            todos: Todo[];
+            noteId: string;
+            timerType: string;
+        }
+
+        type RunningTimerReturn = Pick<Timer, "id" | "endTime" | "startTime" | "itemId"> & {
+            noteId: string;
+            title: string;
+            itemTitle: string;
+            timerType: string;
+        }
+
+        let rows = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select 
+                t."id", t."endTime", t."startTime", t."itemId", t."type" as "timerType", n."title", n."todos", n."id" as "noteId"
+            from public.timer t 
+            join public.note n on t."noteId" = n."id" where n."userId" = '${user.id}' and t."isEnd" = false
+        `))) as RunningTimer[];
+
+        rows = rows.map((row) => ({ ...row, todos: row.todos.map((t) => JSON.parse(t as any)) }));
+
+        return rows.map((row) => {
+            const todo = row.todos.find((t) => t.id === row.itemId).content
+            return {
+                ...row,
+                itemTitle: todo,
+                todos: null,
+            }
+        }) as RunningTimerReturn[]
     }
 }

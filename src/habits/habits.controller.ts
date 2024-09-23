@@ -15,6 +15,14 @@ export class HabitsController {
         }
     }
 
+    @Get("/running-timer")
+    async getRunningTimer(@Auth() user: User) {
+        const result = await this.habitsService.getRunningTimer(user);
+        return {
+            data: result,
+        }
+    }
+
     @Get("/:type")
     async getHabits(@Auth() user: User, @Param("type") type: string) {
         const types = ["all", "day", "weekly", "monthly"];
@@ -58,4 +66,5 @@ export class HabitsController {
             data: result,
         }
     }
+
 }
