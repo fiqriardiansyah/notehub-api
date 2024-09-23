@@ -219,12 +219,13 @@ export class CollaborationService {
         return true;
     };
 
-    async getMyCollaborateProject(user: User) {
+    async getMyCollaborateProject(user: User, order: string = "desc") {
         const result = await this.prismaService.$queryRaw(Prisma.raw(`
-            select n."userId" as "ownerId", u."name" as "ownerName", u."image" as "ownerImage", n."id", n."title", n."note" , n."type", n."tags" , n."isHang", n."todos", c."role" 
+            select n."userId" as "ownerId", u."name" as "ownerName", u."image" as "ownerImage", n."id", n."isSecure", n."title", n."note" , n."type", n."tags", n."updatedAt", n."isHang", n."todos", c."role" 
             from public.collaboration c inner join public.note n on c."noteId" = n."id"
             inner join public.user u on u.id = n."userId"
             where c."userId" = '${user.id}'
+            order by n."updatedAt" ${order}
             `)) as CollaborateProject[];
 
         return result?.map((r) => ({

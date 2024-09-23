@@ -20,8 +20,10 @@ export class InvitationData {
     noteTitle: string;
 }
 
-export type CollaborateProject = Pick<Note, "id" | "title" | "note" | "type" | "todos" | "isHang" | "tags" | "updatedAt"> & Pick<InvitationData, "role"> & {
-    ownerId: string;
-    ownerName: string;
-    ownerImage: string;
-}
+export type CollaborateProject = Pick<Note, "id" | "title" | "note" | "type" | "todos" | "isHang" | "tags" | "updatedAt" | "isSecure">
+    & Pick<InvitationData, "role">
+    & {
+        ownerId: string;
+        ownerName: string;
+        ownerImage: string;
+    }

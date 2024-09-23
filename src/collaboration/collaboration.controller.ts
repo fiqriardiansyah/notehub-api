@@ -17,8 +17,8 @@ export class CollaborationController {
     }
 
     @Get("/all")
-    async getMyCollaborateProject(@Auth() user: User) {
-        const result = await this.collaborationService.getMyCollaborateProject(user);
+    async getMyCollaborateProject(@Auth() user: User, @Query("order") order: string) {
+        const result = await this.collaborationService.getMyCollaborateProject(user, order);
         return {
             data: result,
         }

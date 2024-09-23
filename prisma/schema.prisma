@@ -115,6 +115,7 @@ model Note {
   schedulerEndTime DateTime?
   schedulerImportant Int?
   reschedule Boolean? @default(true)
+  updatedBy String? @default("")
 
   collaboration Collaboration[]
   invitation Invitation[]

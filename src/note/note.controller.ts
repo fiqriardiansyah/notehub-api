@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { Folder, Tag, User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { NoteService } from "./note.service";
@@ -26,8 +26,8 @@ export class NoteController {
     }
 
     @Get("/get-all")
-    async getAllItems(@Auth() user: User) {
-        const result = await this.noteService.getAllItems(user);
+    async getAllItems(@Auth() user: User, @Query("order") order: string) {
+        const result = await this.noteService.getAllItems(user, order);
         return {
             data: result,
         }

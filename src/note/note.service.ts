@@ -59,9 +59,14 @@ export class NoteService {
         }
     }
 
-    async getAllItems(user: User) {
+    async getAllItems(user: User, order: string = "desc") {
         const items = await Promise.all([this.getNote(user), this.getFolder(user)]);
-        const flat = items.flat().sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        const flat = items.flat().sort((a, b) => {
+            if (order === "asc") {
+                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+            }
+            new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
+        }).sort((a: any, b: any) => a?.isHang === b?.isHang ? 0 : (a?.isHang ? -1 : 1));
         return flat;
     }
 
@@ -139,7 +144,7 @@ export class NoteService {
             select n.*, c."role" from public.note n left join public.collaboration c on n.id = c."noteId" 
             where n.id = '${id}' and 
             (n."userId" = '${user.id}' or c."userId" = '${user.id}')
-        `)))[0] as Note;
+        `)))[0] as Note & { role?: any };
 
         if (result?.folderId) {
             const folder = await this.prismaService.folder.findFirst({
@@ -157,6 +162,7 @@ export class NoteService {
 
         return {
             ...result,
+            role: result?.userId === user.id ? null : result.role,
             note: JSON.parse(result?.note),
             description: JSON.parse(result?.description),
             tags: result?.tags?.map((t) => JSON.parse(t)),
@@ -360,20 +366,21 @@ export class NoteService {
                         id: oldNote.id,
                     },
                     data: {
+                        updatedBy: user.name,
                         type: data.type || oldNote.type,
                         title: data?.title || oldNote.title,
                         description: data?.description ? JSON.stringify(data?.description) : oldNote?.description,
                         note: data?.note ? JSON.stringify(data?.note) : oldNote.note,
-                        tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : oldNote.tags,
+                        tags: data?.tags ? data?.tags.map((t) => JSON.stringify(t)) : (oldNote?.tags || []),
                         folderId: data?.folderId === "remove" ? null : folder?.id || data?.folderId || oldNote?.folderId,
-                        todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : oldNote.todos,
+                        todos: data?.todos ? data?.todos.map((t) => JSON.stringify(t)) : (oldNote?.todos || []),
                         schedulerImportant: schedulerImportant(data?.schedulerType),
                         schedulerType: data?.schedulerType,
                         schedulerDays: data.schedulerDays,
                         schedulerEndTime: data.schedulerEndTime,
                         schedulerStartTime: data.schedulerStartTime,
-                        isHang: data?.isHang === undefined ? oldNote.isHang : data.isHang,
-                        isSecure: data?.isSecure === undefined ? oldNote.isSecure : data?.isSecure,
+                        isHang: data?.isHang === undefined ? oldNote?.isHang : data.isHang,
+                        isSecure: data?.isSecure === undefined ? oldNote?.isSecure : data?.isSecure,
                     }
                 });
 
@@ -422,12 +429,11 @@ export class NoteService {
     }
 
     async changeTodos(data: { user: User; noteId: string, todos: Todo[] }) {
-        const note = await this.prismaService.note.findFirst({
-            where: {
-                userId: data.user.id,
-                id: data.noteId,
-            }
-        });
+        const note = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select n.* from public.note n left join public.collaboration c on n.id = c."noteId" 
+            where n.id = '${data.noteId}' and 
+            (n."userId" = '${data.user.id}' or c."userId" = '${data.user.id}')
+        `)))[0] as { id: string }
 
         if (!note) {
             throw new HttpException("Can't find note!", HttpStatus.NOT_FOUND);
@@ -435,7 +441,6 @@ export class NoteService {
 
         const update = await this.prismaService.note.update({
             where: {
-                userId: data.user.id,
                 id: data.noteId,
             },
             data: {
