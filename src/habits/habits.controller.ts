@@ -67,4 +67,19 @@ export class HabitsController {
         }
     }
 
+    @Get("/timer/zen")
+    async getTimerZenMode(@Auth() user: User) {
+        const result = await this.habitsService.getTimerZenMode(user);
+        return {
+            data: result,
+        }
+    }
+
+    @Post("/timer/zen/:id")
+    async setZenMode(@Auth() user: User, @Param("id") id: string, @Body() body: { status: boolean }) {
+        const result = await this.habitsService.setZenMode(id, body.status);
+        return {
+            data: result,
+        }
+    }
 }

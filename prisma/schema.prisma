@@ -191,6 +191,7 @@ model Timer {
   endTime DateTime?
   isEnd Boolean? @default(false)
   autoComplete Boolean? @default(false)
+  isZenMode Boolean? @default(false)
 
   @@map("timer")
 }

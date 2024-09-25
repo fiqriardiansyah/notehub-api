@@ -5,6 +5,19 @@ import { PrismaService } from "src/common/prisma.service";
 import { Todo } from "src/note/note.models";
 
 
+type RunningTimer = Pick<Timer, "id" | "endTime" | "startTime" | "itemId" | "isZenMode"> & Pick<Note, "title"> & {
+    todos: Todo[];
+    noteId: string;
+    timerType: string;
+}
+
+type RunningTimerReturn = Pick<Timer, "id" | "endTime" | "startTime" | "itemId" | "isZenMode"> & {
+    noteId: string;
+    title: string;
+    itemTitle: string;
+    timerType: string;
+}
+
 @Injectable()
 export class HabitsService {
     constructor(private prismaService: PrismaService) { }
@@ -122,6 +135,29 @@ export class HabitsService {
         return result;
     };
 
+    async setZenMode(id: string, val: boolean) {
+        if (val) {
+            const alreadyZenMode = await this.prismaService.timer.findFirst({ where: { isZenMode: true } });
+
+            if (alreadyZenMode) {
+                throw new HttpException("There is timer already in zen mode", HttpStatus.FORBIDDEN);
+            }
+        }
+
+        const timer = await this.prismaService.timer.findFirst({ where: { itemId: id } });
+
+        if (!timer) {
+            throw new HttpException("Timer not found", HttpStatus.NOT_FOUND)
+        }
+
+        const update = await this.prismaService.timer.update({
+            where: { id: timer.id },
+            data: { isZenMode: val }
+        });
+
+        return update;
+    }
+
     async deleteTimerTask(itemId: string, noteId: string) {
         const result = await this.prismaService.timer.deleteMany({
             where: {
@@ -133,24 +169,33 @@ export class HabitsService {
     }
 
     async getRunningTimer(user: User) {
-        type RunningTimer = Pick<Timer, "id" | "endTime" | "startTime" | "itemId"> & Pick<Note, "title"> & {
-            todos: Todo[];
-            noteId: string;
-            timerType: string;
-        }
-
-        type RunningTimerReturn = Pick<Timer, "id" | "endTime" | "startTime" | "itemId"> & {
-            noteId: string;
-            title: string;
-            itemTitle: string;
-            timerType: string;
-        }
 
         let rows = (await this.prismaService.$queryRaw(Prisma.raw(`
             select 
-                t."id", t."endTime", t."startTime", t."itemId", t."type" as "timerType", n."title", n."todos", n."id" as "noteId"
+                t."id", t."endTime", t."startTime", t."itemId", t."type" as "timerType", n."title", n."todos", n."id" as "noteId", t."isZenMode"
             from public.timer t 
             join public.note n on t."noteId" = n."id" where n."userId" = '${user.id}' and t."isEnd" = false
+        `))) as RunningTimer[];
+
+        rows = rows.map((row) => ({ ...row, todos: row.todos.map((t) => JSON.parse(t as any)) }));
+
+        return rows.map((row) => {
+            const todo = row.todos.find((t) => t.id === row.itemId).content
+            return {
+                ...row,
+                itemTitle: todo,
+                todos: null,
+            }
+        }) as RunningTimerReturn[]
+    };
+
+    async getTimerZenMode(user: User) {
+
+        let rows = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select 
+                t."id", t."endTime", t."startTime", t."itemId", t."type" as "timerType", n."title", n."todos", n."id" as "noteId", t."isZenMode"
+            from public.timer t 
+            join public.note n on t."noteId" = n."id" where n."userId" = '${user.id}' and t."isZenMode" = true
         `))) as RunningTimer[];
 
         rows = rows.map((row) => ({ ...row, todos: row.todos.map((t) => JSON.parse(t as any)) }));
