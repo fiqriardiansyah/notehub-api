@@ -227,3 +227,14 @@ model Invitation {
 
   @@map("invitation")
 }
+
+model Notification {
+  id String @id @default(cuid())
+  userId String
+  content Json
+  createdAt DateTime @default(now())
+  isRead Boolean @default(false)
+  type String
+
+  @@map("notification")
+}

@@ -1,10 +1,11 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { Prisma, User } from "@prisma/client";
+import { Invitation, Notification, Prisma, User } from "@prisma/client";
 import Mail from "nodemailer/lib/mailer";
 import { PrismaService } from "src/common/prisma.service";
 import { MailerService } from "src/mailer/mailer.service";
 import { CollaborateProject, InvitationData } from "src/model";
 import { MailerTemplateService } from "src/mailer/mailer.template.service";
+import { NotificationService } from "src/notification/notification.service";
 
 const dayjs = require("dayjs");
 const crypto = require('crypto');
@@ -20,6 +21,7 @@ export class CollaborationService {
         private prismaService: PrismaService,
         private mailerService: MailerService,
         private mailerTemplateService: MailerTemplateService,
+        private notificationService: NotificationService,
     ) { }
 
     async invite(user: User, invitation: InvitationData) {
@@ -105,6 +107,20 @@ export class CollaborationService {
                     token,
                 }
             });
+            const toUser = await this.prismaService.user.findFirst({ where: { email: invitation.email } });
+            if (toUser) {
+                await this.notificationService.createNotification([{
+                    content: JSON.parse(JSON.stringify({
+                        title: `<b>${user.name}</b> asked you to join 🔥<b>${invitation.noteTitle}</b>`,
+                        profileImage: user.image,
+                        role: invitation.role,
+                        projectTitle: invitation.noteTitle,
+                        invitationId: createInvitation.id,
+                    })),
+                    userId: toUser.id,
+                    type: this.notificationService.TYPE_INVITE_TO_PROJECT,
+                }] as Notification[]);
+            }
         }
 
         return invitation;
@@ -131,16 +147,29 @@ export class CollaborationService {
         return result;
     }
 
-    async validateInvitation(token: string, status: "rejected" | "accepted") {
+    async validateInvitationFromNotif(data: { status: "rejected" | "accepted", invitationId: string, notifId: string }) {
+        const findInvitation = await this.prismaService.invitation.findFirst(({ where: { id: data.invitationId } }));
+        if (!findInvitation) {
+            const update = await this.notificationService.updateInvitationProjectStatus(data.notifId, "Invitation no longer valid, either the sender delete it or you already accept/reject");
+            return update;
+        }
+        await this.validateInvitation(null, data.status, data.invitationId);
+        const update = await this.notificationService.updateInvitationProjectStatus(data.notifId, data.status);
+        return update;
+    }
 
-        const findInvitation = await this.prismaService.invitation.findFirst({
-            where: {
-                AND: {
-                    status: "pending",
-                    token
-                }
-            }
-        });
+    async validateInvitation(token: string = "", status: "rejected" | "accepted", id?: string) {
+        if (!token && !id) {
+            throw new HttpException("Token or Id not found", HttpStatus.NOT_FOUND);
+        }
+
+        if (status !== "rejected" && status !== "accepted") {
+            throw new HttpException("Status provide not accepted", HttpStatus.BAD_REQUEST);
+        }
+
+        const findInvitation = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select * from public.invitation i where i."status" = 'pending' and (i."token" = '${token}' or i."id" = '${id}');
+        `)))[0] as Invitation;
 
         if (!findInvitation) {
             throw new HttpException("Invalid token invitation", HttpStatus.FORBIDDEN);

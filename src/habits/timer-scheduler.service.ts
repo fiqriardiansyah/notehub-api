@@ -1,11 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { Cron, CronExpression } from "@nestjs/schedule";
+import { Note, Notification } from "@prisma/client";
 import { PrismaService } from "src/common/prisma.service";
 import { Todo } from "src/note/note.models";
+import { NotificationService } from "src/notification/notification.service";
 
 @Injectable()
 export class TimerSchedulerService {
-    constructor(private prismaService: PrismaService) { }
+    constructor(private prismaService: PrismaService, private notificationService: NotificationService) { }
 
     @Cron(CronExpression.EVERY_MINUTE)
     async rescheduleHabitDaily() {
@@ -35,11 +37,15 @@ export class TimerSchedulerService {
             },
         });
 
+        const notifications: { todo: Todo, note: Note }[] = [];
+
         notes?.forEach(async (n) => {
             const newTodos = n.todos?.map((t) => {
                 const todo = JSON.parse(t) as Todo;
                 const timer = timers.find((timer) => n.id === timer.noteId && timer.itemId === todo.id);
+
                 if (timer) {
+                    notifications.push({ todo, note: n });
                     return {
                         ...todo,
                         isCheck: timer?.autoComplete ? true : todo?.isCheck,
@@ -57,7 +63,19 @@ export class TimerSchedulerService {
                 data: {
                     todos: newTodos?.map((t) => JSON.stringify(t)),
                 }
-            })
+            });
         });
+
+        if (notifications.length) {
+            await this.notificationService.createNotification(notifications.map((item) => ({
+                type: this.notificationService.TYPE_TIMER_HABITS,
+                content: JSON.parse(JSON.stringify({
+                    title: "Times up!",
+                    description: `Your Timer at task <b>${item.todo.content}</b> has over`,
+                    noteId: item.note.id,
+                })),
+                userId: item.note.userId,
+            })) as Notification[])
+        }
     }
 }

@@ -14,6 +14,8 @@ import { SearchModule } from './search/search.module';
 import { CollaborationModule } from './collaboration/collaboration.module';
 import { CollaborationController } from './collaboration/collaboration.controller';
 import { MailerModule } from './mailer/mailer.module';
+import { NotificationModule } from './notification/notifiication.module';
+import { NotificationController } from './notification/notification.controller';
 
 @Module({
   imports: [
@@ -25,13 +27,14 @@ import { MailerModule } from './mailer/mailer.module';
     HabitsModule,
     SearchModule,
     CollaborationModule,
-    MailerModule
+    MailerModule,
+    NotificationModule
   ],
   controllers: [],
   providers: [],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthMiddleware).exclude({ method: RequestMethod.POST, path: "collab/invite/validate" }).forRoutes(NoteController, HabitsController, QuoteController, SearchController, CollaborationController)
+    consumer.apply(AuthMiddleware).exclude({ method: RequestMethod.POST, path: "collab/invite/validate" }).forRoutes(NoteController, HabitsController, QuoteController, SearchController, CollaborationController, NotificationController)
   }
 }

@@ -104,7 +104,15 @@ export class HabitsSchedulerService {
             })),
         });
 
-        await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory]);
+        const deleteTimer = this.prismaService.timer.deleteMany({
+            where: {
+                id: {
+                    in: habits.map((h) => h.id),
+                }
+            }
+        });
+
+        await this.prismaService.$transaction([updateRescheduleAndResetTodos, createHistory, deleteTimer]);
     }
 
     private buildUpdateQuery(habits: Note[]) {

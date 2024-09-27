@@ -33,16 +33,16 @@ export class CollaborationController {
     }
 
     @Post("/invite/validate")
-    async validateInvitation(@Query("token") token: string, @Query("status") status: "rejected" | "accepted") {
-        if (!token) return {
-            data: null,
-        };
-        if (status !== "rejected" && status !== "accepted") {
-            return {
-                data: null,
-            }
+    async validateInvitation(@Query("token") token: string, @Query("id") id: string, @Query("status") status: "rejected" | "accepted") {
+        const result = await this.collaborationService.validateInvitation(token, status, id);
+        return {
+            data: result,
         }
-        const result = await this.collaborationService.validateInvitation(token, status);
+    }
+
+    @Post("/invite/validate-from-notif")
+    async validateInvitationFromNotif(@Body() data: { invitationId: string, notifId: string, status: "rejected" | "accepted" }) {
+        const result = await this.collaborationService.validateInvitationFromNotif(data);
         return {
             data: result,
         }
