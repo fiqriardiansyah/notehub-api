@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { Invitation, Notification, Prisma, User } from "@prisma/client";
+import { Invitation, Note, Notification, Prisma, User } from "@prisma/client";
 import Mail from "nodemailer/lib/mailer";
 import { PrismaService } from "src/common/prisma.service";
 import { MailerService } from "src/mailer/mailer.service";
@@ -202,7 +202,7 @@ export class CollaborationService {
             where: {
                 id: findInvitation.id,
             }
-        })
+        });
 
         return {
             status,
@@ -250,7 +250,20 @@ export class CollaborationService {
 
     async getMyCollaborateProject(user: User, order: string = "desc") {
         const result = await this.prismaService.$queryRaw(Prisma.raw(`
-            select n."userId" as "ownerId", u."name" as "ownerName", u."image" as "ownerImage", n."id", n."isSecure", n."title", n."note" , n."type", n."tags", n."updatedAt", n."isHang", n."todos", c."role" 
+            select 
+                n."userId" as "ownerId", 
+                u."name" as "ownerName", 
+                u."image" as "ownerImage", 
+                n."id", n."isSecure", 
+                n."title", 
+                n."note" , 
+                n."type", 
+                n."tags", 
+                n."updatedAt", 
+                n."isHang", 
+                n."todos", 
+                c."role",
+                c."id" as "collaborateId"
             from public.collaboration c inner join public.note n on c."noteId" = n."id"
             inner join public.user u on u.id = n."userId"
             where c."userId" = '${user.id}'
@@ -263,5 +276,39 @@ export class CollaborationService {
             note: JSON.parse(r?.note),
             tags: r?.tags?.map((t) => JSON.parse(t)),
         }))
+    };
+
+    async leaveCollaborateProject(user: User, collaborateId: string) {
+
+        const ownerUserAndNote = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select u.*, n.* from public.user u join 
+            public.note n on u."id" = n."userId" join 
+            public.collaboration c on c."noteId" = n."id"
+            where c."id" = '${collaborateId}'
+        `)))[0] as User & Note;
+
+        const removeCollab = await this.prismaService.collaboration.delete({
+            where: {
+                userId: user.id,
+                id: collaborateId,
+            }
+        });
+
+        if (!removeCollab) {
+            throw new HttpException("Collaboration not found", HttpStatus.NOT_FOUND);
+        }
+
+        if (ownerUserAndNote) {
+            const notifyToOwnerNote = await this.notificationService.createNotification([{
+                type: this.notificationService.TYPE_LEAVE_PROJECT,
+                content: JSON.parse(JSON.stringify({
+                    title: `<b>${user.name}</b> leave the <b>${ownerUserAndNote.title}</b> project`,
+                    profileImage: user.image,
+                })),
+                userId: ownerUserAndNote.userId,
+            }] as Notification[]);
+        }
+
+        return true;
     }
 }

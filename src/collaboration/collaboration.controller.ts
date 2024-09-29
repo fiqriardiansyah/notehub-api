@@ -83,4 +83,12 @@ export class CollaborationController {
         }
     }
 
+    @Delete("leave/:id")
+    async leaveCollaborateProject(@Auth() user: User, @Param("id") collaborateId: string) {
+        const result = await this.collaborationService.leaveCollaborateProject(user, collaborateId);
+        return {
+            data: result,
+        }
+    }
+
 }

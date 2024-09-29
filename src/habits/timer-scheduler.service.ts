@@ -9,7 +9,7 @@ import { NotificationService } from "src/notification/notification.service";
 export class TimerSchedulerService {
     constructor(private prismaService: PrismaService, private notificationService: NotificationService) { }
 
-    @Cron(CronExpression.EVERY_MINUTE)
+    @Cron(CronExpression.EVERY_30_SECONDS)
     async rescheduleHabitDaily() {
         const timers = await this.prismaService.timer.findMany({
             where: {

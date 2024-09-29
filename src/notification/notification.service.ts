@@ -8,6 +8,7 @@ export class NotificationService {
 
     TYPE_TIMER_HABITS = "notification-timer-habits";
     TYPE_INVITE_TO_PROJECT = "notification-invite-to-project";
+    TYPE_LEAVE_PROJECT = "notification-leave-project";
 
     async createNotification(data: Notification[]) {
         return (await this.prismaService.notification.createMany({
