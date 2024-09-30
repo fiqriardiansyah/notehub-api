@@ -193,4 +193,12 @@ export class NoteController {
             data: result,
         }
     }
+
+    @Get("/only-todos/:id")
+    async getOnlyTodos(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.getOnlyTodos(user, id);
+        return {
+            data: result
+        }
+    }
 }

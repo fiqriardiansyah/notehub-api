@@ -384,6 +384,15 @@ export class NoteService {
                     }
                 });
 
+                if (data?.isSecure) {
+                    await this.prismaService.$queryRaw(Prisma.raw(`
+                        delete from public.collaboration c where c."noteId" = '${oldNote.id}'
+                        `));
+                    await this.prismaService.$queryRaw(Prisma.raw(`
+                        delete from public.invitation i where i."noteId" = '${oldNote.id}'
+                        `))
+                }
+
                 return {
                     id: save.id,
                     createdAt: save.createdAt,
@@ -445,6 +454,7 @@ export class NoteService {
             },
             data: {
                 todos: data.todos.map((t) => JSON.stringify(t)),
+                updatedBy: data.user.name,
             }
         });
 
@@ -473,5 +483,15 @@ export class NoteService {
             ...update,
             todos: update.todos.map((t) => JSON.parse(t)),
         };
+    }
+
+    async getOnlyTodos(user: User, noteId: string) {
+        const notes = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select n.* from public.note n left join public.collaboration c on n."id" = c."noteId"
+            where n."id" = '${noteId}' and (n."userId" = '${user.id}' or c."userId" = '${user.id}')
+        `)))[0] as Note;
+        return {
+            todos: notes?.todos?.map((t) => JSON.parse(t)),
+        }
     }
 }
