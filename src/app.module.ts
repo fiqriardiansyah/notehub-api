@@ -35,6 +35,12 @@ import { NotificationController } from './notification/notification.controller';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    consumer.apply(AuthMiddleware).exclude({ method: RequestMethod.POST, path: "collab/invite/validate" }).forRoutes(NoteController, HabitsController, QuoteController, SearchController, CollaborationController, NotificationController)
+    consumer
+      .apply(AuthMiddleware)
+      .exclude(
+        { method: RequestMethod.POST, path: "collab/invite/validate" },
+        { method: RequestMethod.GET, path: "note/share/:id" }
+      )
+      .forRoutes(NoteController, HabitsController, QuoteController, SearchController, CollaborationController, NotificationController)
   }
 }

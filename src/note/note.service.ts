@@ -3,10 +3,9 @@ import { Folder, Note, Prisma, Tag, User } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from "src/common/prisma.service";
 import { ValidationService } from "src/common/validation.service";
-import { parsingNotes } from "src/lib/utils";
+import { generateToken, parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
-import { InvitationData } from "src/model";
 
 const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
     if (!schedulerType) return null;
@@ -493,5 +492,58 @@ export class NoteService {
         return {
             todos: notes?.todos?.map((t) => JSON.parse(t)),
         }
+    }
+
+    async generateShareLink(user: User, noteId: string) {
+        const generateString = generateToken();
+        const create = await this.prismaService.share.create({
+            data: {
+                link: generateString,
+                noteId,
+                userId: user.id
+            }
+        });
+        return create;
+    }
+
+    async getShareLink(user: User, noteId: string) {
+        const shareLink = await this.prismaService.share.findFirst({
+            where: {
+                userId: user.id,
+                noteId,
+            }
+        });
+        return shareLink
+    }
+
+    async deleteShareLink(user: User, id: string) {
+        const deleteShare = await this.prismaService.share.delete({
+            where: { id }
+        });
+        return deleteShare;
+    }
+
+    async getNoteFromShareLink(link: string) {
+        type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type"> & Pick<User, "name" | "image">;
+
+        const shareLink = await this.prismaService.share.findFirst({ where: { link } });
+        if (!shareLink) {
+            throw new HttpException("Ooops, we found nothing :(", HttpStatus.NOT_FOUND);
+        }
+        const note = (await this.prismaService.$queryRaw(Prisma.raw(`
+            select 
+                n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."type", u."name", u."image"
+            from public.note n join public.user u on n."userId" = u."id" where n."id" = '${shareLink.noteId}'
+        `)))[0] as ReturnType;
+
+        if (!note) {
+            throw new HttpException("Ooops, we found nothing :(", HttpStatus.NOT_FOUND);
+        }
+
+        return {
+            ...note,
+            note: JSON.parse(note.note),
+            todos: note?.todos?.map((t) => JSON.parse(t)),
+        } as ReturnType;
     }
 }

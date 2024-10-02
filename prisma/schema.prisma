@@ -238,3 +238,12 @@ model Notification {
 
   @@map("notification")
 }
+
+model Share {
+  id String @id @default(cuid())
+  noteId String
+  link String
+  userId String
+
+  @@map("share")
+}

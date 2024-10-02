@@ -201,4 +201,36 @@ export class NoteController {
             data: result
         }
     }
+
+    @Post("share-link")
+    async generateShareLink(@Auth() user: User, @Body() data: { noteId: string }) {
+        const result = await this.noteService.generateShareLink(user, data.noteId);
+        return {
+            data: result
+        }
+    }
+
+    @Get("share-link/:id")
+    async getShareLink(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.getShareLink(user, id);
+        return {
+            data: result,
+        }
+    }
+
+    @Delete("share-link/:id")
+    async deleteShareLink(@Auth() user: User, @Param("id") id: string) {
+        const result = await this.noteService.deleteShareLink(user, id);
+        return {
+            data: result,
+        }
+    }
+
+    @Get("share/:id")
+    async getNoteFromShareLink(@Param("id") id: string) {
+        const result = await this.noteService.getNoteFromShareLink(id);
+        return {
+            data: result,
+        }
+    }
 }

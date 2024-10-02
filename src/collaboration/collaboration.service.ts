@@ -6,14 +6,9 @@ import { MailerService } from "src/mailer/mailer.service";
 import { CollaborateProject, InvitationData } from "src/model";
 import { MailerTemplateService } from "src/mailer/mailer.template.service";
 import { NotificationService } from "src/notification/notification.service";
+import { generateToken } from "src/lib/utils";
 
 const dayjs = require("dayjs");
-const crypto = require('crypto');
-
-// Generate a random token
-const generateToken = () => {
-    return crypto.randomBytes(32).toString('hex'); // Generates a 64-character hex string
-};
 
 @Injectable()
 export class CollaborationService {
