@@ -233,4 +233,12 @@ export class NoteController {
             data: result,
         }
     }
+
+    @Get("get-note-id/:link")
+    async getIdNoteFromLink(@Auth() user: User, @Param("link") link: string) {
+        const result = await this.noteService.getIdNoteFromLink(user, link);
+        return {
+            data: result,
+        }
+    }
 }

@@ -524,7 +524,9 @@ export class NoteService {
     }
 
     async getNoteFromShareLink(link: string) {
-        type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type"> & Pick<User, "name" | "image">;
+        type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type"> & Pick<User, "name" | "image"> & {
+            ownerId: string;
+        }
 
         const shareLink = await this.prismaService.share.findFirst({ where: { link } });
         if (!shareLink) {
@@ -532,7 +534,7 @@ export class NoteService {
         }
         const note = (await this.prismaService.$queryRaw(Prisma.raw(`
             select 
-                n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."type", u."name", u."image"
+                n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."type", u."name", u."image", u."id" as "ownerId"
             from public.note n join public.user u on n."userId" = u."id" where n."id" = '${shareLink.noteId}'
         `)))[0] as ReturnType;
 
@@ -545,5 +547,18 @@ export class NoteService {
             note: JSON.parse(note.note),
             todos: note?.todos?.map((t) => JSON.parse(t)),
         } as ReturnType;
+    }
+
+    async getIdNoteFromLink(user: User, link: string) {
+        const shareLink = await this.prismaService.share.findFirst({
+            where: {
+                userId: user.id,
+                link,
+            }
+        });
+        if (!shareLink) {
+            throw new HttpException("Not found", HttpStatus.NOT_FOUND);
+        }
+        return shareLink.noteId;
     }
 }
