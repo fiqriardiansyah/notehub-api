@@ -389,7 +389,20 @@ export class NoteService {
                         `));
                     await this.prismaService.$queryRaw(Prisma.raw(`
                         delete from public.invitation i where i."noteId" = '${oldNote.id}'
-                        `))
+                        `));
+                }
+
+                const shareLink = await this.prismaService.share.findFirst({
+                    where: {
+                        noteId: oldNote.id,
+                    }
+                });
+
+                if (shareLink) {
+                    await this.prismaService.share.update({
+                        where: { id: shareLink.id },
+                        data: { valid: !data?.isSecure }
+                    });
                 }
 
                 return {
@@ -526,12 +539,18 @@ export class NoteService {
     async getNoteFromShareLink(link: string) {
         type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type"> & Pick<User, "name" | "image"> & {
             ownerId: string;
+            collaborators?: Pick<User, "name" | "image">[];
         }
 
         const shareLink = await this.prismaService.share.findFirst({ where: { link } });
         if (!shareLink) {
             throw new HttpException("Ooops, we found nothing :(", HttpStatus.NOT_FOUND);
         }
+
+        if (!shareLink.valid) {
+            throw new HttpException("Shared link not valid", HttpStatus.BAD_REQUEST);
+        }
+
         const note = (await this.prismaService.$queryRaw(Prisma.raw(`
             select 
                 n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."type", u."name", u."image", u."id" as "ownerId"
@@ -542,10 +561,16 @@ export class NoteService {
             throw new HttpException("Ooops, we found nothing :(", HttpStatus.NOT_FOUND);
         }
 
+        const collaborators = await this.prismaService.$queryRaw(Prisma.raw(`
+            select u."name", u."image" from public."user" u join public."collaboration" c on u."id" = c."userId"
+            where c."noteId" = '${shareLink.noteId}'
+        `)) as Pick<User, "name" | "image">[]
+
         return {
             ...note,
             note: JSON.parse(note.note),
             todos: note?.todos?.map((t) => JSON.parse(t)),
+            collaborators,
         } as ReturnType;
     }
 

@@ -244,6 +244,7 @@ model Share {
   noteId String
   link String
   userId String
+  valid Boolean @default(true)
 
   @@map("share")
 }
