@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from "@nestjs/common";
+import { Controller, Get, Query } from "@nestjs/common";
 import { Note, Prisma, User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { PrismaService } from "src/common/prisma.service";
@@ -7,8 +7,8 @@ import { PrismaService } from "src/common/prisma.service";
 export class SearchController {
     constructor(private prismaService: PrismaService) { }
 
-    @Get("/:query")
-    async search(@Auth() user: User, @Param("query") query: string) {
+    @Get("")
+    async search(@Auth() user: User, @Query("query") query: string) {
         type ReturnType = Pick<Note, "id" | "title" | "description" | "todos" | "note" | "type" | "updatedAt"> &
             Pick<User, "name" | "image"> & {
                 isOwner: boolean;

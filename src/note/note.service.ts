@@ -157,7 +157,9 @@ export class NoteService {
             } as Return
         }
 
-        if (!result) return null;
+        if (!result) {
+            throw new HttpException("Resource you trying to access can not found", HttpStatus.NOT_FOUND);
+        };
 
         return {
             ...result,
@@ -174,7 +176,7 @@ export class NoteService {
             where: {
                 AND: [{ userId: user.id }, { id }]
             }
-        })
+        });
 
         if (!result) return false;
 
@@ -233,7 +235,7 @@ export class NoteService {
                 passwordNote: hashPassword
             }
         });
-        return true;
+        return "Password note has been created!";
     }
 
     async changePasswordNote(user: User, data: ChangePasswordNote) {
@@ -242,13 +244,14 @@ export class NoteService {
                 id: user.id
             }
         });
+
         if (!userFind.passwordNote) {
-            throw new Error("Password not defined");
+            throw new HttpException("You havent set a password for secure note yet", HttpStatus.BAD_REQUEST);
         }
 
         const matchPass = await bcrypt.compare(data["old-password"], userFind.passwordNote);
         if (!matchPass) {
-            throw new Error("Password wrong!");
+            throw new HttpException("Wrong password", HttpStatus.BAD_REQUEST);
         }
 
         const hassPassword = await bcrypt.hash(data.password, 10);
@@ -260,7 +263,7 @@ export class NoteService {
                 passwordNote: hassPassword,
             }
         });
-        return true;
+        return "Password changed";
     }
 
     async isPasswordNoteCorrect(user: User, data: CreatePasswordNote) {
