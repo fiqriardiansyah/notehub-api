@@ -8,19 +8,19 @@ export class MailerService {
     transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo, SMTPTransport.Options>
 
     constructor() {
-        this.transporter = this._mailTransport();
+        this.transporter = this._mailTransport() as any;
     }
 
     _mailTransport() {
         const transporter = nodemailer.createTransport({
-            host: "sandbox.smtp.mailtrap.io",
-            port: 2525,
+            host: process.env.MAIL_HOST,
+            port: process.env.MAIL_PORT,
             secure: false,
             auth: {
-                user: "2153db8285ef94",
-                pass: "064557c2b2ba31"
+                user: process.env.MAIL_USER,
+                pass: process.env.MAIL_PASSWORD
             }
-        });
+        } as any)
         return transporter
     }
 

@@ -201,6 +201,11 @@ export class CollaborationService {
 
         return {
             status,
+            ...(status === "accepted" ? {
+                noteTitle: findInvitation.noteTitle,
+                role: findInvitation.role,
+                noteId: findInvitation.noteId,
+            } : {})
         }
     };
 

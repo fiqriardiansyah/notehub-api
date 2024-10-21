@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
-import { Folder, Note, Prisma, Tag, User } from "@prisma/client";
+import { Collaboration, Folder, Note, Prisma, Tag, User } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from "src/common/prisma.service";
 import { ValidationService } from "src/common/validation.service";
@@ -357,9 +357,17 @@ export class NoteService {
                 });
             }
 
+            const collaboration = (await this.prismaService.$queryRaw(Prisma.raw(`
+                select * from public.collaboration c where c."noteId" = '${id}' and c."userId" = '${user.id}';
+            `)))[0] as Collaboration;
+
+            if (collaboration?.role === 'viewer') {
+                throw new HttpException("You are not allowed to edit this project", HttpStatus.BAD_REQUEST);
+            }
+
             const oldNote = (await this.prismaService.$queryRaw(Prisma.raw(`
                 select n.* from public.note n left join public.collaboration c on c."noteId" = n.id
-                where n.id = '${id}' and (n."userId" = '${user.id}' or c."userId" = '${user.id}')
+                where n.id = '${id}' and (n."userId" = '${user.id}' or (c."userId" = '${user.id}' and c."role" = 'editor'))
             `)))[0] as Note;
 
             if (oldNote) {
