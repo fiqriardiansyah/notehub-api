@@ -6,6 +6,7 @@ import { ValidationService } from "src/common/validation.service";
 import { generateToken, parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
+import { BucketService } from "src/bucket/bucket.service";
 
 const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
     if (!schedulerType) return null;
@@ -16,7 +17,7 @@ const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
 
 @Injectable()
 export class NoteService {
-    constructor(private prismaService: PrismaService, private validationService: ValidationService) { }
+    constructor(private prismaService: PrismaService, private validationService: ValidationService, private bucketService: BucketService) { }
 
     async createNote(user: User, data: CreateNote) {
         const validate = this.validationService.validate(NoteValidation.CREATE, data) as CreateNote;
@@ -30,6 +31,41 @@ export class NoteService {
                     type: "folder",
                 }
             });
+        }
+
+        let filesUrl = [];
+        let imagesUrl = [];
+
+        if (data.files?.length) {
+            const files = data?.files?.map((file) => {
+                const fileBuffer = Buffer.from(file.base64.split(',')[1], 'base64');
+                return this.bucketService.uploadFile({
+                    blob: fileBuffer,
+                    contentType: file.contentType,
+                    name: file.name,
+                });
+            });
+            filesUrl = (await Promise.all(files)).map((url, i) => JSON.stringify({
+                url,
+                name: data?.files[i].name,
+                sizeInMb: data?.files[i].sizeInMb,
+            }));
+        }
+
+        if (data.images?.length) {
+            const images = data?.images?.map((file) => {
+                const fileBuffer = Buffer.from(file.base64.split(',')[1], 'base64');
+                return this.bucketService.uploadFile({
+                    blob: fileBuffer,
+                    contentType: file.contentType,
+                    name: file.name,
+                });
+            });
+            imagesUrl = (await Promise.all(images)).map((url, i) => JSON.stringify({
+                url,
+                name: data?.images[i].name,
+                sizeInMb: data?.images[i].sizeInMb,
+            }));
         }
 
         const save = await this.prismaService.note.create({
@@ -49,6 +85,8 @@ export class NoteService {
                 schedulerStartTime: data.schedulerStartTime,
                 isHang: data?.isHang,
                 isSecure: data?.isSecure,
+                filesUrl,
+                imagesUrl,
             }
         });
 
@@ -168,6 +206,8 @@ export class NoteService {
             description: JSON.parse(result?.description),
             tags: result?.tags?.map((t) => JSON.parse(t)),
             todos: result?.todos?.map((t) => JSON.parse(t)),
+            filesUrl: result?.filesUrl?.map((t) => JSON.parse(t)),
+            imagesUrl: result?.imagesUrl?.map((t) => JSON.parse(t)),
         };
     }
 
@@ -371,6 +411,50 @@ export class NoteService {
             `)))[0] as Note;
 
             if (oldNote) {
+
+                let filesUrl = data?.files?.filter((fl) => fl?.url).map((fl) => JSON.stringify(fl));
+                let imagesUrl = data?.images?.filter((img) => img?.url).map((img) => JSON.stringify(img));
+
+                if (data.files?.length) {
+                    const files = data?.files?.map((file) => {
+                        if (file?.url) return null;
+                        const fileBuffer = Buffer.from(file.base64.split(',')[1], 'base64');
+                        return this.bucketService.uploadFile({
+                            blob: fileBuffer,
+                            contentType: file.contentType,
+                            name: file.name,
+                        });
+                    }).filter(Boolean);
+
+                    const result = (await Promise.all(files)).map((url, i) => JSON.stringify({
+                        url,
+                        name: data?.files[i].name,
+                        sizeInMb: data?.files[i].sizeInMb,
+                    }));
+
+                    filesUrl = [...filesUrl, ...result];
+                }
+
+                if (data.images?.length) {
+                    const images = data?.images?.map((file) => {
+                        if (file?.url) return null;
+                        const fileBuffer = Buffer.from(file.base64.split(',')[1], 'base64');
+                        return this.bucketService.uploadFile({
+                            blob: fileBuffer,
+                            contentType: file.contentType,
+                            name: file.name,
+                        });
+                    }).filter(Boolean);
+
+                    const result = (await Promise.all(images)).map((url, i) => JSON.stringify({
+                        url,
+                        name: data?.images[i].name,
+                        sizeInMb: data?.images[i].sizeInMb,
+                    }));
+
+                    imagesUrl = [...imagesUrl, ...result];
+                }
+
                 const save = await this.prismaService.note.update({
                     where: {
                         id: oldNote.id,
@@ -391,6 +475,8 @@ export class NoteService {
                         schedulerStartTime: data.schedulerStartTime,
                         isHang: data?.isHang === undefined ? oldNote?.isHang : data.isHang,
                         isSecure: data?.isSecure === undefined ? oldNote?.isSecure : data?.isSecure,
+                        imagesUrl,
+                        filesUrl,
                     }
                 });
 
@@ -548,7 +634,7 @@ export class NoteService {
     }
 
     async getNoteFromShareLink(link: string) {
-        type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type"> & Pick<User, "name" | "image"> & {
+        type ReturnType = Pick<Note, "title" | "note" | "updatedAt" | "updatedBy" | "todos" | "type" | "filesUrl" | "imagesUrl"> & Pick<User, "name" | "image"> & {
             ownerId: string;
             collaborators?: Pick<User, "name" | "image">[];
         }
@@ -564,7 +650,7 @@ export class NoteService {
 
         const note = (await this.prismaService.$queryRaw(Prisma.raw(`
             select 
-                n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."type", u."name", u."image", u."id" as "ownerId"
+                n."title", n."note", n."updatedAt", n."todos", n."updatedBy", n."filesUrl", n."imagesUrl", n."type", u."name", u."image", u."id" as "ownerId"
             from public.note n join public.user u on n."userId" = u."id" where n."id" = '${shareLink.noteId}'
         `)))[0] as ReturnType;
 
@@ -581,6 +667,8 @@ export class NoteService {
             ...note,
             note: JSON.parse(note.note),
             todos: note?.todos?.map((t) => JSON.parse(t)),
+            filesUrl: note?.filesUrl?.map((t) => JSON.parse(t)),
+            imagesUrl: note?.imagesUrl?.map((t) => JSON.parse(t)),
             collaborators,
         } as ReturnType;
     }

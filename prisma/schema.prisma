@@ -116,6 +116,8 @@ model Note {
   schedulerImportant Int?
   reschedule Boolean? @default(true)
   updatedBy String? @default("")
+  imagesUrl String[]
+  filesUrl String[]
 
   collaboration Collaboration[]
   invitation Invitation[]

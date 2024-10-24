@@ -14,5 +14,12 @@ export const parsingNotes = (notes?: Note[]) => {
         description: JSON.parse(note?.description),
         tags: note?.tags?.map((t) => JSON.parse(t)),
         todos: note?.todos?.map((t) => JSON.parse(t)),
+        filesUrl: note?.filesUrl?.map((t) => JSON.parse(t)),
+        imagesUrl: note?.imagesUrl?.map((t) => JSON.parse(t)),
     }));
+}
+
+export const getContentType = (base64String: string): string | null => {
+    const matches = base64String.match(/^data:(.*);base64,/);
+    return matches ? matches[1] : null;
 }

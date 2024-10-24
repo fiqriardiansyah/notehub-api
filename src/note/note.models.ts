@@ -34,6 +34,8 @@ export class CreateNote {
     schedulerStartTime?: string;
     schedulerEndTime?: string;
     schedulerImportant?: number;
+    files?: { base64: string; name: string; contentType: string, sizeInMb: string; url?: string }[];
+    images?: { base64: string; name: string; contentType: string, sizeInMb: string; url?: string }[];
 }
 
 export class CreatePasswordNote {
