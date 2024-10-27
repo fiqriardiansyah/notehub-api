@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Patch, Post, Put, Query } from "@nestjs/common";
 import { Folder, Tag, User } from "@prisma/client";
 import { Auth } from "src/common/auth.decorator";
 import { NoteService } from "./note.service";
@@ -124,7 +124,7 @@ export class NoteController {
 
     @Post("/antf") // add notes to folder
     async addNotesToFolder(@Auth() user: User, @Body() data: AddNoteToFolder) {
-        const result = await this.noteService.addNotesToFolder({ user, folderId: data.folderId, noteIds: data.noteIds });
+        const result = await this.noteService.addNotesToFolder({ user, folderId: data?.folderId, newFolderName: data?.newFolderName, noteIds: data.noteIds });
         return {
             data: result,
         }
@@ -162,9 +162,28 @@ export class NoteController {
         }
     }
 
+    @Patch("/rnf")
+    async removeNotesFromFolder(@Auth() user: User, @Body() data: { noteIds: string[] }) {
+        if (!data?.noteIds || !Array.isArray(data.noteIds)) {
+            throw new HttpException("Request body noteIds is required", HttpStatus.BAD_REQUEST);
+        }
+        const result = await this.noteService.removeNotesFromFolder(user, data?.noteIds);
+        return {
+            data: result,
+        }
+    }
+
     @Delete(":id")
     async deleteNote(@Auth() user: User, @Param("id") id: string) {
         const result = await this.noteService.deleteNote(user, id);
+        return {
+            data: result
+        }
+    }
+
+    @Post("/many")
+    async deleteNotes(@Auth() user: User, @Body() data: { ids: string[] }) {
+        const result = await this.noteService.deleteNotes(user, data?.ids);
         return {
             data: result
         }

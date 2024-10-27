@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { Injectable } from "@nestjs/common";
+import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { generateToken } from "src/lib/utils";
 
 export interface UploadFile {
@@ -36,8 +36,8 @@ export class BucketService {
 
             const data = await this.s3.send(new PutObjectCommand(params));
             return `https://${params.Bucket}.s3.amazonaws.com/${params.Key}`
-        } catch (err) {
-            console.error('Error uploading file:', err);
+        } catch (err: any) {
+            throw new HttpException(err?.message, HttpStatus.BAD_REQUEST);
         }
     }
 }

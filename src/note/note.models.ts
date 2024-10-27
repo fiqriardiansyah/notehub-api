@@ -49,5 +49,6 @@ export class ChangePasswordNote {
 
 export class AddNoteToFolder {
     noteIds: string[];
-    folderId: string;
+    folderId?: string;
+    newFolderName?: string;
 }

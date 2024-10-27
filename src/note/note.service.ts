@@ -233,6 +233,18 @@ export class NoteService {
         return result
     }
 
+    async deleteNotes(user: User, ids: string[]) {
+        const result = await this.prismaService.note.deleteMany({
+            where: {
+                userId: user.id,
+                id: {
+                    in: ids
+                }
+            }
+        });
+        return result;
+    }
+
     async deleteFolder(user: User, id: string) {
         const folder = await this.prismaService.folder.findFirst({ where: { id, userId: user.id } });
         if (!folder) {
@@ -515,13 +527,23 @@ export class NoteService {
         }
     }
 
-    async addNotesToFolder({ folderId, user, noteIds }: { user: User, noteIds: string[], folderId: string }) {
+    async addNotesToFolder({ folderId, newFolderName, user, noteIds }: { user: User, noteIds: string[], folderId?: string, newFolderName?: string }) {
         try {
+            let finalFolderId = folderId;
+            if (newFolderName && !finalFolderId) {
+                finalFolderId = (await this.prismaService.folder.create({
+                    data: {
+                        title: newFolderName,
+                        userId: user.id,
+                        type: "folder",
+                    }
+                })).id;
+            }
             await this.prismaService.$transaction([
                 this.prismaService.folder.update({
                     where: {
                         userId: user.id,
-                        id: folderId
+                        id: finalFolderId
                     },
                     data: {
                         updatedAt: new Date().toISOString()
@@ -535,15 +557,30 @@ export class NoteService {
                         }
                     },
                     data: {
-                        folderId
+                        folderId: finalFolderId
                     }
                 }),
             ]);
-            return folderId;
+            return finalFolderId;
         } catch (e: any) {
             throw new HttpException(e?.message, HttpStatus.EXPECTATION_FAILED);
         }
 
+    }
+
+    async removeNotesFromFolder(user: User, noteIds: string[]) {
+        const result = await this.prismaService.note.updateMany({
+            where: {
+                userId: user.id,
+                id: {
+                    in: noteIds,
+                }
+            },
+            data: {
+                folderId: null,
+            }
+        });
+        return result;
     }
 
     async changeTodos(data: { user: User; noteId: string, todos: Todo[] }) {
