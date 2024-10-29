@@ -177,22 +177,31 @@ export class NoteService {
     async getOneNote(user: User, id: string) {
         type Return = Note & { folderName?: string, role: string };
 
-        let result = (await this.prismaService.$queryRaw(Prisma.raw(`
-            select n.*, c."role" from public.note n left join public.collaboration c on n.id = c."noteId" 
-            where n.id = '${id}' and 
-            (n."userId" = '${user.id}' or c."userId" = '${user.id}')
-        `)))[0] as Note & { role?: any };
+        let result;
 
-        if (result?.folderId) {
-            const folder = await this.prismaService.folder.findFirst({
-                where: {
-                    id: result.folderId,
-                }
+        if (id === "insight") {
+            result = await this.prismaService.note.findFirst({
+                where: { id },
+                select: { note: true, imagesUrl: true, title: true, todos: true, filesUrl: true, description: true, tags: true }
             });
-            result = {
-                ...result,
-                folderName: folder.title,
-            } as Return
+        } else {
+            result = (await this.prismaService.$queryRaw(Prisma.raw(`
+                select n.*, c."role" from public.note n left join public.collaboration c on n.id = c."noteId" 
+                where n.id = '${id}' and 
+                (n."userId" = '${user.id}' or c."userId" = '${user.id}')
+            `)))[0] as Note & { role?: any };
+
+            if (result?.folderId) {
+                const folder = await this.prismaService.folder.findFirst({
+                    where: {
+                        id: result.folderId,
+                    }
+                });
+                result = {
+                    ...result,
+                    folderName: folder.title,
+                } as Return
+            }
         }
 
         if (!result) {
