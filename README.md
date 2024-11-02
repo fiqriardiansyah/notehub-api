@@ -97,6 +97,11 @@ To get the project up and running, you'll need to install the following:
             npx prisma migrate dev
             npx prisma generate
             ```
+        - seed dabatase
+            ```
+            npm run seed
+            
+            ```
     - Development
         ```
         npm run start:dev
