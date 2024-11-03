@@ -3,7 +3,7 @@
 
 ![Notespacehub](https://ik.imagekit.io/p4ukigs1hrvx/notespacehub-bg_iu22nzgdf.png?updatedAt=1730190310235)
 
-> **Live**: [https://notehub-pi.vercel.app](https://notehub-pi.vercel.app/)
+> **Live**: [https://www.notespacehub.com/](https://www.notespacehub.com/)
 
 ---
 
