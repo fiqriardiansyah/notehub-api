@@ -260,6 +260,8 @@ export class CollaborationService {
                 n."type", 
                 n."tags", 
                 n."updatedAt", 
+                n."imagesUrl",
+                n."filesUrl",
                 n."isHang", 
                 n."todos", 
                 c."role",
