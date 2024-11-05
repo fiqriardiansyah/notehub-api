@@ -277,6 +277,8 @@ export class CollaborationService {
             todos: r?.todos?.map((t) => JSON.parse(t)),
             note: JSON.parse(r?.note),
             tags: r?.tags?.map((t) => JSON.parse(t)),
+            imagesUrl: r?.imagesUrl?.map((i) => JSON.parse(i)),
+            filesUrl: r?.filesUrl?.map((f) => JSON.parse(f)),
         }))
     };
 
