@@ -1,12 +1,12 @@
 import { HttpException, HttpStatus, Injectable } from "@nestjs/common";
 import { Collaboration, Folder, Note, Prisma, Tag, User } from "@prisma/client";
 import * as bcrypt from 'bcrypt';
+import { BucketService } from "src/bucket/bucket.service";
 import { PrismaService } from "src/common/prisma.service";
 import { ValidationService } from "src/common/validation.service";
 import { generateToken, parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
-import { BucketService } from "src/bucket/bucket.service";
 
 const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
     if (!schedulerType) return null;
@@ -97,17 +97,36 @@ export class NoteService {
     }
 
     async getAllItems(user: User, order: string = "desc") {
-        const items = await Promise.all([this.getNote(user), this.getFolder(user)]);
-        const flat = items.flat().sort((a, b) => {
-            if (order === "asc") {
-                return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-            }
-            new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime()
-        }).sort((a: any, b: any) => a?.isHang === b?.isHang ? 0 : (a?.isHang ? -1 : 1));
-        return flat;
+        let queryString = `
+            select * from (
+                select 
+                    n."id" as id, n."userId" as "userId", n."updatedAt"::TEXT as "updatedAt", n."filesUrl" as "filesUrl", n."imagesUrl" as "imagesUrl", n."isHang" as "isHang",
+                    n."note" as note, n."tags" as tags, n."title" as title, n."todos" as todos, n."updatedBy" as "updatedBy", n."type" as type
+                from public.note n 
+                where n."userId" = '${user.id}'
+                and n."folderId" is null
+                and n."type" != 'habits'
+
+                union
+
+                select 
+                    f."id" as id, f."userId" as "userId", f."updatedAt"::TEXT as "updatedAt", NULL as "filesUrl", NULL as "imagesUrl", NULL as "isHang",
+                    NULL as note, NULL as tags, f."title" as title, NULL as todos, NULL as "updatedBy", f."type" as type
+                from public.folder f
+                where f."userId" = '${user.id}'
+            ) i
+            order by 
+                case when i."isHang" = true then 0 else 1 end,
+                i."updatedAt" ${order};
+        `
+
+        const items = await this.prismaService.$queryRaw(Prisma.raw(queryString)) as Note[];
+        const parse = parsingNotes(items);
+
+        return parse;
     }
 
-    async getFolderAndContent(user: User, id: string) {
+    async getFolderAndContent({ user, id, order }: { user: User; id: string; order?: "desc" | "asc" }) {
         const folder = await this.prismaService.folder.findFirst({
             where: {
                 userId: user.id,
@@ -115,7 +134,7 @@ export class NoteService {
             }
         });
 
-        const notes = await this.getNote(user, id);
+        const notes = await this.getNote({ user, folderId: id, order });
         return {
             folder,
             notes,
@@ -150,26 +169,18 @@ export class NoteService {
         return folder;
     }
 
-    async getNote(user: User, folderId: string = null) {
-        const notes = await this.prismaService.note.findMany({
-            where: {
-                userId: user.id,
-                AND: {
-                    folderId,
-                },
-                NOT: {
-                    type: "habits"
-                }
-            },
-            orderBy: [
-                {
-                    isHang: 'desc'
-                },
-                {
-                    updatedAt: 'desc'
-                }
-            ]
-        });
+    async getNote({ user, folderId = null, order = "desc" }: { user: User; folderId?: string, order?: "desc" | "asc" }) {
+        let queryString = `
+            select * from public.note n 
+            where n."userId" = '${user.id}' 
+            ${folderId ? `and n."folderId" = '${folderId}'` : 'and n."folderId" is null'} 
+            and n."type" != 'habits'
+            order by 
+                case when n."isHang" = true then 0 else 1 end,
+                n."updatedAt" ${order};
+        `
+
+        const notes = await this.prismaService.$queryRaw(Prisma.raw(queryString)) as Note[];
 
         return parsingNotes(notes);
     }

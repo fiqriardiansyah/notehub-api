@@ -11,15 +11,15 @@ export class NoteController {
 
     @Get()
     async getNotes(@Auth() user: User) {
-        const result = await this.noteService.getNote(user);
+        const result = await this.noteService.getNote({ user });
         return {
             data: result
         }
     }
 
-    @Get("/f/:id")
-    async getFolderAndContent(@Auth() user: User, @Param("id") id: string) {
-        const result = await this.noteService.getFolderAndContent(user, id);
+    @Get("/f")
+    async getFolderAndContent(@Auth() user: User, @Query() query: { id: string; order?: "desc" | "asc" }) {
+        const result = await this.noteService.getFolderAndContent({ user, id: query.id, order: query?.order });
         return {
             data: result,
         }

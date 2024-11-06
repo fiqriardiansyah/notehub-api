@@ -1,4 +1,4 @@
-import { Note } from "@prisma/client";
+import { Folder, Note } from "@prisma/client";
 
 const crypto = require('crypto');
 
@@ -10,12 +10,12 @@ export const generateToken = () => {
 export const parsingNotes = (notes?: Note[]) => {
     return notes?.map((note) => ({
         ...note,
-        note: note?.isSecure ? undefined : JSON.parse(note.note),
-        description: JSON.parse(note?.description),
-        tags: note?.tags?.map((t) => JSON.parse(t)),
-        todos: note?.todos?.map((t) => JSON.parse(t)),
-        filesUrl: note?.filesUrl?.map((t) => JSON.parse(t)),
-        imagesUrl: note?.imagesUrl?.map((t) => JSON.parse(t)),
+        note: note?.isSecure ? undefined : note?.note ? JSON.parse(note?.note) : null,
+        description: note?.description ? JSON.parse(note?.description) : null,
+        tags: (note?.tags || [])?.map((t) => JSON.parse(t)) || [],
+        todos: (note?.todos || [])?.map((t) => JSON.parse(t)) || [],
+        filesUrl: (note?.filesUrl || [])?.map((t) => JSON.parse(t)) || [],
+        imagesUrl: (note?.imagesUrl || [])?.map((t) => JSON.parse(t)) || [],
     }));
 }
 
