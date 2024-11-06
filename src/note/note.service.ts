@@ -101,7 +101,7 @@ export class NoteService {
             select * from (
                 select 
                     n."id" as id, n."userId" as "userId", n."updatedAt"::TEXT as "updatedAt", n."filesUrl" as "filesUrl", n."imagesUrl" as "imagesUrl", n."isHang" as "isHang",
-                    n."note" as note, n."tags" as tags, n."title" as title, n."todos" as todos, n."updatedBy" as "updatedBy", n."type" as type
+                    n."note" as note, n."tags" as tags, n."title" as title, n."todos" as todos, n."updatedBy" as "updatedBy", n."type" as type, n."isSecure" as "isSecure"
                 from public.note n 
                 where n."userId" = '${user.id}'
                 and n."folderId" is null
@@ -111,7 +111,7 @@ export class NoteService {
 
                 select 
                     f."id" as id, f."userId" as "userId", f."updatedAt"::TEXT as "updatedAt", NULL as "filesUrl", NULL as "imagesUrl", NULL as "isHang",
-                    NULL as note, NULL as tags, f."title" as title, NULL as todos, NULL as "updatedBy", f."type" as type
+                    NULL as note, NULL as tags, f."title" as title, NULL as todos, NULL as "updatedBy", f."type" as type, NULL as "isSecure"
                 from public.folder f
                 where f."userId" = '${user.id}'
             ) i
