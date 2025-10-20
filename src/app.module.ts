@@ -1,4 +1,9 @@
-import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
+import {
+  MiddlewareConsumer,
+  Module,
+  NestModule,
+  RequestMethod,
+} from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AuthModule } from './auth/auth.module';
 import { BucketController } from './bucket/bucket.controller';
@@ -18,6 +23,11 @@ import { QuoteController } from './quote/quote.controller';
 import { QuoteModule } from './quote/quote.module';
 import { SearchController } from './search/search.controller';
 import { SearchModule } from './search/search.module';
+import { AppController } from './app.controller';
+import { AuthMobileModule } from './auth-mobile/auth-mobile.module';
+import { UserModule } from './user/user.module';
+import { UserController } from './user/user.controller';
+import { GeminiAIModule } from './gemini-ai/gemini-ai.module';
 
 @Module({
   imports: [
@@ -32,8 +42,11 @@ import { SearchModule } from './search/search.module';
     MailerModule,
     NotificationModule,
     BucketModule,
+    AuthMobileModule,
+    UserModule,
+    GeminiAIModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [],
 })
 export class AppModule implements NestModule {
@@ -41,10 +54,20 @@ export class AppModule implements NestModule {
     consumer
       .apply(AuthMiddleware)
       .exclude(
-        { method: RequestMethod.POST, path: "collab/invite/validate" },
-        { method: RequestMethod.GET, path: "note/share/:id" },
-        { method: RequestMethod.POST, path: "bucket/test-upload" },
+        { method: RequestMethod.POST, path: 'collab/invite/validate' },
+        { method: RequestMethod.GET, path: 'note/share/:id' },
+        { method: RequestMethod.POST, path: 'bucket/test-upload' },
       )
-      .forRoutes(NoteController, HabitsController, QuoteController, SearchController, CollaborationController, NotificationController, BucketController)
+      .forRoutes(
+        NoteController,
+        HabitsController,
+        QuoteController,
+        SearchController,
+        CollaborationController,
+        NotificationController,
+        BucketController,
+        UserController,
+        GeminiAIModule,
+      );
   }
 }

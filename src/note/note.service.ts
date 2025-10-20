@@ -7,6 +7,7 @@ import { ValidationService } from "src/common/validation.service";
 import { generateToken, parsingNotes } from "src/lib/utils";
 import { ChangePasswordNote, CreateNote, CreatePasswordNote, Todo } from "./note.models";
 import { NoteValidation } from "./note.validation";
+import { NoteType } from "src/enum/note.enum";
 
 const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
     if (!schedulerType) return null;
@@ -19,7 +20,7 @@ const schedulerImportant = (schedulerType?: "day" | "weekly" | "monthly") => {
 export class NoteService {
     constructor(private prismaService: PrismaService, private validationService: ValidationService, private bucketService: BucketService) { }
 
-    async createNote(user: User, data: CreateNote) {
+    async createNote(userId: string, data: CreateNote) {
         const validate = this.validationService.validate(NoteValidation.CREATE, data) as CreateNote;
 
         let folder;
@@ -27,7 +28,7 @@ export class NoteService {
             folder = await this.prismaService.folder.create({
                 data: {
                     title: data.newFolder?.title,
-                    userId: user.id,
+                    userId: userId,
                     type: "folder",
                 }
             });
@@ -74,7 +75,7 @@ export class NoteService {
                 title: validate.title,
                 description: data.description ? JSON.stringify(data.description) : null,
                 note: JSON.stringify(validate.note),
-                userId: user.id,
+                userId: userId,
                 tags: data?.tags?.map((t) => JSON.stringify(t)),
                 folderId: folder?.id || data?.folderId,
                 todos: data?.todos?.map((t) => JSON.stringify(t)),
@@ -741,5 +742,22 @@ export class NoteService {
             throw new HttpException("Not found", HttpStatus.NOT_FOUND);
         }
         return shareLink.noteId;
+    }
+
+    async createWelcomingNote(user: { id: string, name: string }) {
+
+        const welcomingTitle = "Welcome to Notespacehub 👋"
+        const welcomingNote = `{"time":1748689535732,"blocks":[{"id":"3yAjcDZR9F","type":"paragraph","data":{"text":"Hi {{username}}, we're excited to have you here! 🎉"}},{"id":"A87nrO2LVC","type":"paragraph","data":{"text":"Here's what you can do with NotespaceHub:"}},{"id":"nC4lmOdNg1","type":"paragraph","data":{"text":"✅ Write and organize notes"}},{"id":"LobcrCw6RB","type":"paragraph","data":{"text":"✅ Create to-do lists with deadlines"}},{"id":"ifhNFt_m9g","type":"paragraph","data":{"text":"✅ Track habits and daily goals"}},{"id":"qrKDZfJCLE","type":"paragraph","data":{"text":"✅ Collaborate on notes with others"}},{"id":"ZS6H2dJDve","type":"paragraph","data":{"text":"✅ Earn streaks and view progress on your calendar"}},{"id":"RkDHSCB9aF","type":"paragraph","data":{"text":"---"}},{"id":"dOvGyuU8Ue","type":"paragraph","data":{"text":"🚀 Let's Get Started!"}},{"id":"YCwU3vuYvb","type":"paragraph","data":{"text":"Here are some tips to begin:"}},{"id":"EF7MnuGMpk","type":"paragraph","data":{"text":"- 📄 Create your first note"}},{"id":"8uTioTRG-x","type":"paragraph","data":{"text":"- ✅ Add a task to your to-do list"}},{"id":"j-vu2UkSTX","type":"paragraph","data":{"text":"- 🗓️ Explore your habit calendar"}},{"id":"gtic0LKD84","type":"paragraph","data":{"text":"- 🤝 Invite a friend to collaborate"}},{"id":"JOtQpchBSb","type":"paragraph","data":{"text":"Enjoy your journey with NotespaceHub!  "}},{"id":"G0bYX0g8_U","type":"paragraph","data":{"text":"<b>The NotespaceHub Team</b> 💙"}}],"version":"2.30.2"}`;
+
+        const save = await this.prismaService.note.create({
+            data: {
+                type: NoteType.FREETEXT,
+                title: welcomingTitle,
+                note: welcomingNote.replace("{{username}}", user.name),
+                userId: user.id,
+            }
+        });
+
+        return save;
     }
 }

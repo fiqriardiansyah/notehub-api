@@ -8,6 +8,7 @@ import {
     VerificationToken,
 } from 'next-auth/adapters';
 import { PrismaService } from 'src/common/prisma.service';
+import { NoteService } from 'src/note/note.service';
 
 @Injectable()
 export class AuthService {
@@ -16,12 +17,15 @@ export class AuthService {
 
     constructor(
         prisma: PrismaService,
+        private readonly noteService: NoteService,
     ) {
         this.adapter = PrismaAdapter(prisma);
     }
 
     async createUser(user: Omit<AdapterUser, 'id'>) {
-        return await this.adapter.createUser(user);
+        const createdUser = await this.adapter.createUser(user);
+        this.noteService.createWelcomingNote({ id: createdUser.id, name: createdUser.name });
+        return createdUser;
     }
 
     async getUserByEmail(email: string) {

@@ -43,7 +43,6 @@ export class NoteController {
 
     @Get("/tag")
     async getTag(@Auth() user: User) {
-        console.log("tag", user)
         const result = await this.noteService.getTags(user);
         return {
             data: result,
@@ -76,7 +75,7 @@ export class NoteController {
 
     @Post()
     async createNote(@Body() data: CreateNote, @Auth() user: User): Promise<BaseResponse> {
-        const result = await this.noteService.createNote(user, data);
+        const result = await this.noteService.createNote(user.id, data);
         return {
             data: result
         }
