@@ -1,5 +1,5 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { Invitation, Note, Notification, Prisma, User } from '@prisma/client';
+import { Invitation, Note, Notification, Prisma } from '@prisma/client';
 import Mail from 'nodemailer/lib/mailer';
 import { PrismaService } from 'src/common/prisma.service';
 import { MailerService } from 'src/mailer/mailer.service';
@@ -7,8 +7,11 @@ import { CollaborateProject, InvitationData } from 'src/model';
 import { MailerTemplateService } from 'src/mailer/mailer.template.service';
 import { NotificationService } from 'src/notification/notification.service';
 import { generateToken } from 'src/lib/utils';
+import { UserSession } from '@thallesp/nestjs-better-auth';
 
 const dayjs = require('dayjs');
+
+type User = UserSession['user'];
 
 @Injectable()
 export class CollaborationService {

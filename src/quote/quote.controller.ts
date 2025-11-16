@@ -1,17 +1,17 @@
-import { Controller, Get, Param } from "@nestjs/common";
-import { User } from "@prisma/client";
-import { Auth } from "src/common/auth.decorator";
-import { QuoteService } from "./quote.service";
+import { Controller, Get, UseGuards } from '@nestjs/common';
+import { AuthGuard, Session, UserSession } from '@thallesp/nestjs-better-auth';
+import { QuoteService } from './quote.service';
 
-@Controller("/quote")
+@Controller('/quote')
+@UseGuards(AuthGuard)
 export class QuoteController {
-    constructor(private quoteService: QuoteService) { }
+  constructor(private quoteService: QuoteService) {}
 
-    @Get("/")
-    async getQuote(@Auth() user: User) {
-        const result = await this.quoteService.getQuote(user);
-        return {
-            data: result,
-        }
-    }
+  @Get('/')
+  async getQuote(@Session() session: UserSession) {
+    const result = await this.quoteService.getQuote(session.user);
+    return {
+      data: result,
+    };
+  }
 }
