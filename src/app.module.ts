@@ -20,9 +20,11 @@ import { NotificationModule } from './notification/notifiication.module';
 import { QuoteModule } from './quote/quote.module';
 import { SearchModule } from './search/search.module';
 import { UserModule } from './user/user.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     AuthModule.forRoot({
       auth,
       disableGlobalAuthGuard: true,

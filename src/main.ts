@@ -1,21 +1,27 @@
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import * as cookieParser from 'cookie-parser';
-import * as bodyParser from 'body-parser';
-import * as proxy from 'express-http-proxy';
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { NestFactory } from '@nestjs/core';
+import * as bodyParser from 'body-parser';
+import * as cookieParser from 'cookie-parser';
+import * as proxy from 'express-http-proxy';
+import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './filter';
-// import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
     bodyParser: false,
   });
 
+  const configService = app.get(ConfigService);
+
   app.enableCors({
-    origin: process.env.FE_URL,
+    origin: configService.getOrThrow<string>('FE_URL'),
     credentials: true,
   });
+
+  const appPrefix = configService.getOrThrow('PREFIX');
+
+  app.setGlobalPrefix(appPrefix);
 
   app.use(cookieParser());
   app.use(bodyParser.json({ limit: '50mb' }));
@@ -36,8 +42,8 @@ async function bootstrap() {
 
   app.useGlobalFilters(new AllExceptionsFilter());
 
-  const port = parseInt(process.env.PORT);
-  const host = process.env.HOST || 'localhost';
+  const port = parseInt(configService.getOrThrow<string>('PORT'), 10);
+  const host = configService.getOrThrow('HOST') || 'localhost';
 
   await app.listen(port, host);
   console.log(`server running at ${host}:${port}`);
