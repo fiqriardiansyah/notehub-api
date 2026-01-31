@@ -3,12 +3,14 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { Note, Notification } from '@prisma/client';
 import { PrismaService } from 'src/common/prisma.service';
 import { TodoDto } from 'src/models/todo.dto';
-import { NotificationService } from 'src/notification/notification.service';
+import { CreateNotificationAction } from 'src/modules/notification/action/create-notification.action';
+import { NotificationService } from 'src/modules/notification/notification.service';
 
 @Injectable()
 export class TimerSchedulerService {
   constructor(
     private prismaService: PrismaService,
+    private createNotificationAction: CreateNotificationAction,
     private notificationService: NotificationService,
   ) {}
 
@@ -74,7 +76,7 @@ export class TimerSchedulerService {
     });
 
     if (notifications.length) {
-      await this.notificationService.createNotification(
+      await this.createNotificationAction.execute(
         notifications.map((item) => ({
           type: this.notificationService.TYPE_TIMER_HABITS,
           content: JSON.parse(

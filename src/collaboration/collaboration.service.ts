@@ -1,15 +1,16 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Invitation, Note, Notification, Prisma } from '@prisma/client';
+import { UserSession } from '@thallesp/nestjs-better-auth';
 import Mail from 'nodemailer/lib/mailer';
 import { PrismaService } from 'src/common/prisma.service';
-import { MailerService } from 'src/mailer/mailer.service';
-import { CollaborateProject, InvitationData } from 'src/model';
-import { MailerTemplateService } from 'src/mailer/mailer.template.service';
-import { NotificationService } from 'src/notification/notification.service';
 import { generateToken } from 'src/lib/utils';
-import { UserSession } from '@thallesp/nestjs-better-auth';
-
-const dayjs = require('dayjs');
+import { MailerTemplateService } from 'src/mailer/mailer.template.service';
+import { CollaborateProject, InvitationData } from 'src/model';
+import {
+  CreateNotificationAction,
+  UpdateInvitationProjectStatusAction,
+} from 'src/modules/notification/action';
+import { NotificationService } from 'src/modules/notification/notification.service';
 
 type User = UserSession['user'];
 
@@ -17,8 +18,9 @@ type User = UserSession['user'];
 export class CollaborationService {
   constructor(
     private prismaService: PrismaService,
-    private mailerService: MailerService,
     private mailerTemplateService: MailerTemplateService,
+    private createNotificationAction: CreateNotificationAction,
+    private updateInvitationProjectStatusAction: UpdateInvitationProjectStatusAction,
     private notificationService: NotificationService,
   ) {}
 
@@ -127,7 +129,7 @@ export class CollaborationService {
         where: { email: invitation.email },
       });
       if (toUser) {
-        await this.notificationService.createNotification([
+        await this.createNotificationAction.execute([
           {
             content: JSON.parse(
               JSON.stringify({
@@ -178,17 +180,21 @@ export class CollaborationService {
       where: { id: data.invitationId },
     });
     if (!findInvitation) {
-      const update =
-        await this.notificationService.updateInvitationProjectStatus(
-          data.notifId,
-          'Invitation no longer valid, either the sender delete it or you already accept/reject',
-        );
+      const update = await this.updateInvitationProjectStatusAction.execute(
+        data.notifId,
+        {
+          status:
+            'Invitation no longer valid, either the sender delete it or you already accept/reject',
+        },
+      );
       return update;
     }
     await this.validateInvitation(null, data.status, data.invitationId);
-    const update = await this.notificationService.updateInvitationProjectStatus(
+    const update = await this.updateInvitationProjectStatusAction.execute(
       data.notifId,
-      data.status,
+      {
+        status: data.status,
+      },
     );
     return update;
   }
@@ -365,19 +371,18 @@ export class CollaborationService {
     }
 
     if (ownerUserAndNote) {
-      const notifyToOwnerNote =
-        await this.notificationService.createNotification([
-          {
-            type: this.notificationService.TYPE_LEAVE_PROJECT,
-            content: JSON.parse(
-              JSON.stringify({
-                title: `<b>${user.name}</b> leave the <b>${ownerUserAndNote.title}</b> project`,
-                profileImage: user.image,
-              }),
-            ),
-            userId: ownerUserAndNote.userId,
-          },
-        ] as Notification[]);
+      const notifyToOwnerNote = await this.createNotificationAction.execute([
+        {
+          type: this.notificationService.TYPE_LEAVE_PROJECT,
+          content: JSON.parse(
+            JSON.stringify({
+              title: `<b>${user.name}</b> leave the <b>${ownerUserAndNote.title}</b> project`,
+              profileImage: user.image,
+            }),
+          ),
+          userId: ownerUserAndNote.userId,
+        },
+      ] as Notification[]);
     }
 
     return true;
